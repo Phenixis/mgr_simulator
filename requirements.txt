@@ -1,0 +1,12 @@
+# Main dependencies
+numpy
+matplotlib
+pygame
+pandas
+scipy
+seaborn
+pathlib
+tqdm
+
+# Optional dependencies
+joblib  # For parallelization
