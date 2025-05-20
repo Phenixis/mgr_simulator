@@ -48,12 +48,12 @@ And that’s it — you’re good to go!
 
 ### Commands summary
 #### Installing git and pyenv
-
+Run these commands in a PowerShell with Administrator rights.
 ```
 # Run PowerShell as Administrator before running this script!
 
 # Install Chocolatey
-Set-ExecutionPolicy Bypass -Scope Process -Force
+Set-ExecutionPolicy Bypass -Scope Process -Force RemoteSigned
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
@@ -62,10 +62,9 @@ $env:Path += ";$env:ALLUSERSPROFILE\chocolatey\bin"
 
 # Install Git
 choco install git -y
-```
 
-#### Install pyenv
-```
+$env:Path += ";${env:ProgramFiles}\Git\cmd"
+
 # Install pyenv-win
 git clone https://github.com/pyenv-win/pyenv-win.git "$HOME/.pyenv"
 
@@ -75,6 +74,7 @@ $env:Path += ";$env:USERPROFILE\.pyenv\pyenv-win\shims"
 ```
 
 #### Running the project
+Run these commands in the command line.
 ```
 cd %USERPROFILE%\Documents
 git clone https://github.com/Phenixis/mgr_simulator
@@ -94,6 +94,7 @@ move dist\main.exe .\main.exe
 main.exe
 ```
 
+If you made modifications and need to recompile the project, execute onle the last 3 lines.
 
 ## Application description 
 Prepared simulation shows a glass bottle filling station using 3 main operations. During the simulation, successive bottles appear on the production line, which transports them between three machines carrying out the following operations: bottle quality control, bottle filling and bottle closing. The prepared simulation enables the occurrence of many emergency situations, resulting, for example, from the appearance of a broken bottle, the correct operation of which belongs to the PLC program controlling the course of the simulated object. The prepared controller application has the ability to connect via Ethernet, both with the real PLC controller and the simulator of such a controller. In addition, the application gives the opportunity to perform simple operations in the simulation, allowing to assess the correctness of the application and enabling gradual implementation in the laboratory.
