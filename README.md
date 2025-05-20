@@ -93,7 +93,15 @@ move dist\main.exe .\main.exe
 main.exe
 ```
 
-If you made modifications and need to recompile the project, execute onle the last 3 lines.
+If you made modifications and need to recompile the project, execute only these lines:
+```
+venv\Scripts\activate.bat
+
+pyinstaller --onefile main.py --add-data "venv\Lib\site-packages\snap7;.\snap7" --add-data "img/*;img"
+move dist\main.exe .\main.exe
+
+main.exe
+```
 
 ## Application description 
 Prepared simulation shows a glass bottle filling station using 3 main operations. During the simulation, successive bottles appear on the production line, which transports them between three machines carrying out the following operations: bottle quality control, bottle filling and bottle closing. The prepared simulation enables the occurrence of many emergency situations, resulting, for example, from the appearance of a broken bottle, the correct operation of which belongs to the PLC program controlling the course of the simulated object. The prepared controller application has the ability to connect via Ethernet, both with the real PLC controller and the simulator of such a controller. In addition, the application gives the opportunity to perform simple operations in the simulation, allowing to assess the correctness of the application and enabling gradual implementation in the laboratory.
