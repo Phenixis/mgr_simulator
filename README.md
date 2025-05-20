@@ -53,7 +53,7 @@ Run these commands in a PowerShell with Administrator rights.
 # Run PowerShell as Administrator before running this script!
 
 # Install Chocolatey
-Set-ExecutionPolicy Bypass -Scope Process -Force RemoteSigned
+Set-ExecutionPolicy Bypass -Scope Process -Force
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
@@ -69,8 +69,7 @@ $env:Path += ";${env:ProgramFiles}\Git\cmd"
 git clone https://github.com/pyenv-win/pyenv-win.git "$HOME/.pyenv"
 
 # Restart your PowerShell session or run these to refresh your environment variables
-$env:Path += ";$env:USERPROFILE\.pyenv\pyenv-win\bin"
-$env:Path += ";$env:USERPROFILE\.pyenv\pyenv-win\shims"
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:USERPROFILE\.pyenv\pyenv-win\bin;$env:USERPROFILE\.pyenv\pyenv-win\shims", [EnvironmentVariableTarget]::User)
 ```
 
 #### Running the project
