@@ -7,6 +7,7 @@ scipy
 seaborn
 pathlib
 tqdm
+python-snap7
 
 # Optional dependencies
 joblib  # For parallelization
