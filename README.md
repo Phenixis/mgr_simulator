@@ -46,6 +46,61 @@ Run: `main.exe`
 
 And that’s it — you’re good to go!
 
+### Commands summary
+#### Installing git and pyenv
+
+```
+# Run PowerShell as Administrator before running this script!
+
+# Install Chocolatey
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Refresh environment variables so choco is available immediately
+$env:Path += ";$env:ALLUSERSPROFILE\chocolatey\bin"
+
+# Install Git
+choco install git -y
+
+# Install pyenv-win
+choco install pyenv-win -y
+
+# Restart your PowerShell session or run these to refresh your environment variables
+$env:Path += ";$env:USERPROFILE\.pyenv\pyenv-win\bin"
+$env:Path += ";$env:USERPROFILE\.pyenv\pyenv-win\shims"
+
+# Verify installations
+git --version
+pyenv --version
+```
+
+#### Running the project
+```
+cd %USERPROFILE%\Documents
+git clone https://github.com/Phenixis/mgr_simulator
+cd mgr_simulator
+
+# Install Python 3.11.9 with pyenv (skip if already installed)
+pyenv install 3.11.9
+pyenv local 3.11.9
+
+# Create and activate virtual environment
+C:\Users\<your_username>\.pyenv\pyenv-win\versions\3.11.9\python.exe -m venv venv
+venv\Scripts\activate.bat
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Build executable
+pyinstaller --onefile main.py --add-data "venv\Lib\site-packages\snap7;.\snap7" --add-data "img/*;img"
+move dist\main.exe .\main.exe
+
+# Run the app
+main.exe
+
+```
+
 
 ## Application description 
 Prepared simulation shows a glass bottle filling station using 3 main operations. During the simulation, successive bottles appear on the production line, which transports them between three machines carrying out the following operations: bottle quality control, bottle filling and bottle closing. The prepared simulation enables the occurrence of many emergency situations, resulting, for example, from the appearance of a broken bottle, the correct operation of which belongs to the PLC program controlling the course of the simulated object. The prepared controller application has the ability to connect via Ethernet, both with the real PLC controller and the simulator of such a controller. In addition, the application gives the opportunity to perform simple operations in the simulation, allowing to assess the correctness of the application and enabling gradual implementation in the laboratory.
