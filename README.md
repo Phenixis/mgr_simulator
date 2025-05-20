@@ -62,17 +62,16 @@ $env:Path += ";$env:ALLUSERSPROFILE\chocolatey\bin"
 
 # Install Git
 choco install git -y
+```
 
+#### Install pyenv
+```
 # Install pyenv-win
-choco install pyenv-win -y
+git clone https://github.com/pyenv-win/pyenv-win.git "$HOME/.pyenv"
 
 # Restart your PowerShell session or run these to refresh your environment variables
 $env:Path += ";$env:USERPROFILE\.pyenv\pyenv-win\bin"
 $env:Path += ";$env:USERPROFILE\.pyenv\pyenv-win\shims"
-
-# Verify installations
-git --version
-pyenv --version
 ```
 
 #### Running the project
@@ -81,24 +80,18 @@ cd %USERPROFILE%\Documents
 git clone https://github.com/Phenixis/mgr_simulator
 cd mgr_simulator
 
-# Install Python 3.11.9 with pyenv (skip if already installed)
 pyenv install 3.11.9
 pyenv local 3.11.9
 
-# Create and activate virtual environment
-C:\Users\<your_username>\.pyenv\pyenv-win\versions\3.11.9\python.exe -m venv venv
+%USERPROFILE%\.pyenv\pyenv-win\versions\3.11.9\python.exe -m venv venv
 venv\Scripts\activate.bat
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Build executable
 pyinstaller --onefile main.py --add-data "venv\Lib\site-packages\snap7;.\snap7" --add-data "img/*;img"
 move dist\main.exe .\main.exe
 
-# Run the app
 main.exe
-
 ```
 
 
