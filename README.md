@@ -5,6 +5,20 @@ Programing language: Python
 
 Additional used software: PyGame, Snap7
 
+## Windows Installation
+- clone this git
+- install python 3.11.9
+- install pyenv
+- setup a virtual environment using python 3.11.9
+- install the dependencies listed in requirements.txt
+- run the following commands :
+```
+pyinstaller --onefile main.py --add-data "venv\Lib\site-packages\snap7;.\snap7" --add-data "img/*;img"
+move dist\main.exe .\main.exe
+main.exe
+```
+- And the application is running !
+
 ## Application description 
 Prepared simulation shows a glass bottle filling station using 3 main operations. During the simulation, successive bottles appear on the production line, which transports them between three machines carrying out the following operations: bottle quality control, bottle filling and bottle closing. The prepared simulation enables the occurrence of many emergency situations, resulting, for example, from the appearance of a broken bottle, the correct operation of which belongs to the PLC program controlling the course of the simulated object. The prepared controller application has the ability to connect via Ethernet, both with the real PLC controller and the simulator of such a controller. In addition, the application gives the opportunity to perform simple operations in the simulation, allowing to assess the correctness of the application and enabling gradual implementation in the laboratory.
 

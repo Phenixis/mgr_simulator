@@ -37,7 +37,7 @@ class PLCRead(Thread):
                         self.sim.texts[1][2] = self.sim.render_text("PLC name: " + self.cpu_info.ModuleName.decode(), 15, WHITE)
                         self.sim.texts[1][3] = self.sim.render_text("PLC type: " + self.cpu_info.ModuleTypeName.decode(), 15, WHITE)
                         self.time_mem = time.time()
-                except snap7.exceptions.Snap7Exception as e:
+                except Exception as e:
                     print(self.name + ":")
                     print(e.args[0].decode())
                     print(" Connection failed. Trying to connect again in 2 sec.")

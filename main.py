@@ -1,3 +1,12 @@
+import os
+import sys
+
+if getattr(sys, 'frozen', False):
+    snap7_path = os.path.join(sys._MEIPASS, 'snap7')
+    os.environ['PATH'] = snap7_path + os.pathsep + os.environ['PATH']
+
+# This enables the import of snap7 with pyinstaller
+
 import math
 from os import path
 from configparser import ConfigParser

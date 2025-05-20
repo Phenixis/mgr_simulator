@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('img/*','img')],
+    datas=[('venv\\Lib\\site-packages\\snap7', '.\\snap7'), ('img/*', 'img')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

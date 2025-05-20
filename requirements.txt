@@ -5,8 +5,8 @@ pygame
 pandas
 scipy
 seaborn
-pathlib
 tqdm
+pyinstaller
 python-snap7
 
 # Optional dependencies
