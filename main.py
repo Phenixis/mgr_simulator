@@ -322,10 +322,67 @@ class Simulator:
         self.plc_read_thread.start()
         # Simulation loop
         self.running = True
+        # Wait for PLC connection before starting simulation
+        print("Waiting for PLC connection...")
+        connection_wait_time = time.time()
+        attempt_count = 0
+        while not self.plc_read_thread.connected and self.running:
+            # Check for events to allow user to exit during connection attempt
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.running = False
+            # Draw waiting screen
+            self.screen.fill(DARK_GRAY)
+            waiting_text = self.render_text("Waiting for PLC connection...", 30, WHITE)
+            self.screen.blit(waiting_text, (WIDTH//2 - waiting_text.get_width()//2, HEIGHT//2 - 70))
+            address_text = self.render_text(f"Attempting to connect to: {self.plc_address}", 20, WHITE)
+            self.screen.blit(address_text, (WIDTH//2 - address_text.get_width()//2, HEIGHT//2 - 30))
+            
+            # Show the connection attempt count
+            attempt_count += 1
+            attempts_text = self.render_text(f"Attempt {attempt_count}/5", 20, WHITE)
+            self.screen.blit(attempts_text, (WIDTH//2 - attempts_text.get_width()//2, HEIGHT//2))
+            
+            # Display timeout message after 10 seconds
+            if time.time() - connection_wait_time > 10:
+                timeout_text = self.render_text("Connection taking longer than expected. Check PLC address and settings.", 15, WHITE)
+                self.screen.blit(timeout_text, (WIDTH//2 - timeout_text.get_width()//2, HEIGHT//2 + 30))
+                
+                # Add more helpful text after 15 seconds
+                if time.time() - connection_wait_time > 15:
+                    help_text1 = self.render_text("1. Verify the PLC is powered on and accessible on the network", 15, WHITE)
+                    help_text2 = self.render_text("2. Check that the IP address, rack, and slot in simulator.ini are correct", 15, WHITE)
+                    help_text3 = self.render_text("3. Ensure no firewall is blocking the connection", 15, WHITE)
+                    self.screen.blit(help_text1, (WIDTH//2 - help_text1.get_width()//2, HEIGHT//2 + 60))
+                    self.screen.blit(help_text2, (WIDTH//2 - help_text2.get_width()//2, HEIGHT//2 + 80))
+                    self.screen.blit(help_text3, (WIDTH//2 - help_text3.get_width()//2, HEIGHT//2 + 100))
+            
+            pg.display.flip()
+            time.sleep(0.5)
+            
+        # If we exited the loop but aren't connected, exit
+        if not self.plc_read_thread.connected:
+            print("Failed to connect to PLC. Exiting.")
+            self.running = False
+            
         if self.timer_on:
             self.time_mem = time.time()
+            
         while self.running:
             self.sim_count += 1
+            
+            # Check if we're still connected to PLC
+            if not self.plc_read_thread.connected:
+                print("PLC connection lost. Stopping simulation.")
+                # Try one more time to reconnect
+                self.plc_read_thread.connection_attempts = 0
+                # Wait for a moment before stopping completely
+                time.sleep(2)
+                # If still not connected, stop the simulation
+                if not self.plc_read_thread.connected:
+                    self.running = False
+                    break
+                
             # fps management
             if self.manual_mode_on:
                 self.fps = self.manual_mode_fps
@@ -366,6 +423,13 @@ class Simulator:
 
     def events(self):
         # Simulation loop events
+        if not self.plc_read_thread.connected:
+            # Only check for quit events if not connected to PLC
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.running = False
+            return
+            
         updated_broken_bottle_chance = False
         updated_self_processing = False
         updated_random_space = False
@@ -610,6 +674,14 @@ class Simulator:
             self.random_space_on = not self.random_space_on
 
     def update(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            # Stop the simulation if not connected to PLC
+            if self.start_simulation:
+                self.start_simulation = False
+                print("Simulation stopped: PLC connection required")
+            return
+            
         # Simulation loop update
         self.all_sprites.update()
         # spawning next bottles
@@ -643,6 +715,10 @@ class Simulator:
             self.control_panel_R.is_on = False
 
     def filler(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            return
+            
         # Liquid queue processing
         if self.filler_update:
             # choosing active filler
@@ -672,6 +748,14 @@ class Simulator:
             self.filler_update = False
 
     def manual_mode(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            # Stop the manual mode if not connected to PLC
+            if self.manual_mode_on:
+                self.manual_mode_on = False
+                print("Manual mode disabled: PLC connection required")
+            return
+            
         # update machine sensor lights state...
         # ...for machine A
         if self.machine_A_LR[0] and self.machine_A_LR[1]:
@@ -696,6 +780,14 @@ class Simulator:
             self.machine_C_ROG = [True, False, False]
 
     def self_processing(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            # Stop self-processing if not connected to PLC
+            if self.self_processing_on:
+                self.self_processing_on = False
+                print("Self-processing disabled: PLC connection required")
+            return
+            
         # Simulation self processing loop update
         # starting production line after all operations complete
         if not self.machine_A_top_ROG[1] and not self.machine_B_top_ROG[1] and not self.machine_C_top_ROG[1]:
@@ -846,8 +938,16 @@ class Simulator:
         self.sp_last_C_LR[1] = self.machine_C_LR[1]
 
     def plc_processing(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            # Stop the simulation if not connected to PLC
+            if self.start_simulation:
+                self.start_simulation = False
+                print("Simulation stopped: PLC connection required")
+            return
+            
         # data access control
-        if not self.io_lock and self.plc_read_thread.connected:
+        if not self.io_lock:
             self.io_lock = True
 
             # update simulation inputs
@@ -882,6 +982,21 @@ class Simulator:
         # Simulation drawing loop
         # drawing background
         self.screen.blit(self.background, (0, 0))
+        
+        # Check if PLC is connected and show appropriate message if not
+        if not self.plc_read_thread.connected:
+            self.screen.fill(DARK_GRAY)
+            disconnected_text = self.render_text("PLC Connection Required", 30, WHITE)
+            self.screen.blit(disconnected_text, (WIDTH//2 - disconnected_text.get_width()//2, HEIGHT//2 - 50))
+            instructions_text = self.render_text("This simulator only works when connected to a PLC.", 20, WHITE)
+            self.screen.blit(instructions_text, (WIDTH//2 - instructions_text.get_width()//2, HEIGHT//2))
+            address_text = self.render_text(f"Configured PLC address: {self.plc_address}", 20, WHITE)
+            self.screen.blit(address_text, (WIDTH//2 - address_text.get_width()//2, HEIGHT//2 + 30))
+            settings_text = self.render_text("Check settings.ini to configure PLC connection parameters.", 18, WHITE)
+            self.screen.blit(settings_text, (WIDTH//2 - settings_text.get_width()//2, HEIGHT//2 + 60))
+            pg.display.flip()
+            return
+            
         # self.all_sprites.draw(self.screen)  # not in use as the sprites update queue is specified
         # draw sprites under bottle liquid
         self.machines_sensor.draw(self.screen)
@@ -1032,6 +1147,33 @@ class Simulator:
 
 # Main
 if __name__ == '__main__':
+    print("="*80)
+    print("BOTTLE FILLING MACHINE SIMULATOR")
+    print("="*80)
+    print("This simulator requires a PLC connection to operate.")
+    print("Configuration will be loaded from simulator.ini")
+    
+    # Read PLC settings from ini file to show the user
+    import configparser
+    config = configparser.ConfigParser()
+    try:
+        config.read('simulator.ini')
+        plc_address = config.get('plc', 'address')
+        plc_rack = config.getint('plc', 'rack')
+        plc_slot = config.getint('plc', 'slot')
+        plc_port = config.getint('plc', 'port')
+        print("\nPLC Connection Settings:")
+        print(f"  Address: {plc_address}")
+        print(f"  Rack: {plc_rack}")
+        print(f"  Slot: {plc_slot}")
+        print(f"  Port: {plc_port}")
+        print("\nMake sure your PLC is powered on and accessible on the network.")
+    except Exception as e:
+        print("Error reading simulator.ini. Please ensure the file exists and has the correct format.")
+        print(f"Error details: {str(e)}")
+    
+    print("="*80)
+    
     g = Simulator()
     g.initial()
 
@@ -1042,4 +1184,6 @@ if __name__ == '__main__':
     print('write_operation_count: ' + str(g.write_operation_count))
     print('read_thread_count: ' + str(g.read_thread_count))
     print('read_operation_count: ' + str(g.read_operation_count))
+    
+    print("\nSimulation ended. PLC connection is required to run the simulator.")
     pg.quit()

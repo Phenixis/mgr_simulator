@@ -106,13 +106,30 @@ main.exe
 ## Application description 
 Prepared simulation shows a glass bottle filling station using 3 main operations. During the simulation, successive bottles appear on the production line, which transports them between three machines carrying out the following operations: bottle quality control, bottle filling and bottle closing. The prepared simulation enables the occurrence of many emergency situations, resulting, for example, from the appearance of a broken bottle, the correct operation of which belongs to the PLC program controlling the course of the simulated object. The prepared controller application has the ability to connect via Ethernet, both with the real PLC controller and the simulator of such a controller. In addition, the application gives the opportunity to perform simple operations in the simulation, allowing to assess the correctness of the application and enabling gradual implementation in the laboratory.
 
+### PLC Connection Requirements
+**Important**: This simulator requires a connection to a PLC to operate. The simulator will not function without a valid PLC connection.
+
+#### Supported PLC Options:
+1. **Real Siemens PLC**: Connect to an actual S7 PLC device on the network.
+2. **PLC Simulator**: Use software like PLCSIM, S7-PLCSIM Advanced, or other S7 protocol compatible simulators.
+
+#### PLC Configuration:
+Edit the `simulator.ini` file to configure your PLC connection:
+```ini
+[plc]
+address = 192.168.45.2  # IP address of your PLC or PLC simulator
+rack = 0                # Rack number (typically 0)
+slot = 1                # Slot number (typically 1 for CPU)
+port = 102              # Communication port (default is 102 for S7 protocol)
+```
+
 ## Application functionality
 - simulation of filling bottles station realized in PyGame;
 - controlling simulator behavior via computer keyboard;
 - possibility to run simulation in self processing state;
-- possibility to connect to PLC device by Snap7 library;
-- possibility to connect to PLC simulator by Snap7 library;
+- requires connection to a PLC device or PLC simulator via Snap7 library;
 - possibility to control simulation from connected PLCs;
+- automatic detection and connection to PLC using settings from simulator.ini;
 
 ## Screenshot of prepared application
 ![Alt text](./img/screenshot.jpg)
