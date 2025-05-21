@@ -76,7 +76,7 @@ class PLCRead(Thread):
                             while self.data.__len__() < 37:
                                 self.data += "0"
                             self.data_to_update = True
-                    except snap7.exceptions.Snap7Exception as e:
+                    except Exception as e:
                         try:
                             e_str = e.args[0].decode()
                         except:
@@ -154,7 +154,7 @@ class PLCWrite(Thread):
                             print(f"{self.name}: Max connection attempts reached. Exiting.")
                             self.running = False
                             break
-                except snap7.exceptions.Snap7Exception as e:
+                except Exception as e:
                     print(self.name + ":")
                     try:
                         print(e.args[0].decode())
@@ -184,7 +184,7 @@ class PLCWrite(Thread):
                         self.sim.write_operation_count += 1
                         self.pps += 1
                         self.result = self.plc.mb_write(5, 3, outputs_bytes)
-                    except snap7.exceptions.Snap7Exception as e:
+                    except Exception as e:
                         try:
                             e_str = e.args[0].decode()
                         except:
@@ -233,7 +233,7 @@ class PLCStatus(Thread):
                             print(f"{self.name}: Max connection attempts reached. Exiting.")
                             self.running = False
                             break
-                except snap7.exceptions.Snap7Exception as e:
+                except Exception as e:
                     print(self.name + ":")
                     try:
                         print(e.args[0].decode())
@@ -252,7 +252,7 @@ class PLCStatus(Thread):
                     self.sim.status_operation_count += 1
                     self.cpu_state = self.plc.get_cpu_state()
                     self.sim.texts[1][4] = self.sim.render_text("CPU state: " + str(self.cpu_state), 15, WHITE)
-                except snap7.exceptions.Snap7Exception as e:
+                except Exception as e:
                     try:
                         e_str = e.args[0].decode()
                     except:

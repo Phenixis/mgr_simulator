@@ -340,7 +340,7 @@ class Simulator:
             
             # Show the connection attempt count
             attempt_count += 1
-            attempts_text = self.render_text(f"Attempt {attempt_count}/5", 20, WHITE)
+            attempts_text = self.render_text(f"Attempt {attempt_count}", 20, WHITE)
             self.screen.blit(attempts_text, (WIDTH//2 - attempts_text.get_width()//2, HEIGHT//2))
             
             # Display timeout message after 10 seconds
