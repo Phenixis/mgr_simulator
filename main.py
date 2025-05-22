@@ -276,7 +276,7 @@ class Simulator:
         self.last_bottle = Bottle(self, -100, 320)
         # creating read (main) thread objects for exchanging data with PLC
         self.plc_read_thread = PLCRead(self)
-        # Creating control variables
+        # Creating control variables 
         self.production_line_run = False  # production line run (input)
         self.machine_A_ROG = [False, False, False]  # machine sensor lights red/orange/green (inputs)
         self.machine_B_ROG = [False, False, False]
@@ -879,20 +879,20 @@ class Simulator:
 
         # cycle A
         if not self.sp_openA:
-            if self.machine_A_operation_out[3]:
+            if self.machine_A_operation_out[3]: # If machine A is in operation 
                 self.sp_A_ok = True
-            if self.machine_A_operation_out[4]:
+            if self.machine_A_operation_out[4]: # If machine A is not in operation
                 self.sp_A_ok = False
-            if self.machine_A_operation_out[1]:
-                self.sp_A_end_pos = True
-            if self.machine_A_operation_out[0] and self.sp_A_end_pos:
-                self.machine_A_top_ROG[1] = False
-                if self.sp_A_ok:
-                    self.machine_A_top_ROG[0] = False
-                    self.machine_A_top_ROG[2] = True
+            if self.machine_A_operation_out[1]: # If machine A is in position
+                self.sp_A_end_pos = True 
+            if self.machine_A_operation_out[0] and self.sp_A_end_pos: # If machine A is in position and the operation is complete
+                self.machine_A_top_ROG[1] = False # Turn off the orange light
+                if self.sp_A_ok: # If machine A is ok
+                    self.machine_A_top_ROG[0] = False # Turn off the red light
+                    self.machine_A_top_ROG[2] = True # Turn on the green light
                 else:
-                    self.machine_A_top_ROG[0] = True
-                    self.machine_A_top_ROG[2] = False
+                    self.machine_A_top_ROG[0] = True # Turn on the red light 
+                    self.machine_A_top_ROG[2] = False # Turn off the green light
                 self.sp_A_end_pos = False
         # cycle B
         if not self.sp_openB:
