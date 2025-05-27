@@ -950,7 +950,7 @@ class Simulator:
         if not self.io_lock:
             self.io_lock = True
 
-            # update simulation inputs
+            # update simulation inputs // PLC outputs
             self.production_line_run = self.inputs[0]
             self.machine_A_ROG = self.inputs[1:4]
             self.machine_B_ROG = self.inputs[4:7]
@@ -962,7 +962,7 @@ class Simulator:
             self.machine_B_operation_in = self.inputs[25:31]
             self.machine_C_operation_in = self.inputs[31:37]
 
-            # update simulation outputs
+            # update simulation outputs // PLC inputs
             self.outputs = [self.machine_A_LR[0], self.machine_A_LR[1],
                             self.machine_B_LR[0], self.machine_B_LR[1],
                             self.machine_C_LR[0], self.machine_C_LR[1],
