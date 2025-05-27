@@ -26,7 +26,7 @@ INPUTS = [
 	1.5 => machineB_topRedLight (BOOL)
 	1.6 => machineB_topOrangeLight (BOOL)
 	1.7 => machineB_topGreenLight (BOOL)
-	
+
 	2.0 => machineC_topRedLight (BOOL)
 	2.1 => machineC_topOrangeLight (BOOL)
 	2.2 => machineC_topGreenLight (BOOL)
@@ -305,7 +305,7 @@ MEMORY = [
 ```
 
 ## Function Blocks
-²
+
 ### FC_AddToQueue
 
 #### Input Parameters:
@@ -313,14 +313,21 @@ MEMORY = [
 Queue (IN_OUT WORD) - The queue to modify
 Value (IN BOOL) - Value to add (1 for good, 0 for bad)
 
-#### STL/SCL Code:
-```
-// Shift existing bits left by 1 position
-#Queue := SHL(IN := #Queue, N := 1);
-// Add new value to rightmost bit
-IF #Value THEN
-    #Queue := #Queue OR 16#0001;
-END_IF;
+#### STL Code:
+```stl
+      L     #Queue           // Load current Queue
+      SLW   1                // Shift left
+      T     #Queue           // Store back
+
+      A     #Value           // If #Value is TRUE
+      JCN   skipOR           // Skip if not true
+
+      L     #Queue           // Load Queue
+      L     W#16#0001        // Load constant
+      O                     // OR operation (word)
+      T     #Queue           // Store back
+
+skipOR: NOP   0
 ```
 
 ### FC_ShiftQueue
@@ -329,10 +336,11 @@ END_IF;
 
 Queue (IN_OUT WORD) - The queue to shift
 
-#### STL/SCL Code:
-```
-// Shift all bits right by 1 position
-#Queue := SHR(IN := #Queue, N := 1);
+#### STL Code:
+```stl
+      L     #Queue      // Load Queue
+      SRW   1           // Shift Right Word by 1
+      T     #Queue      // Store back into Queue
 ```
 
 ### FC_GetQueueBit
@@ -346,8 +354,14 @@ Position (IN INT) - Bit position (0 = rightmost)
 
 Value (OUT BOOL) - The bit value
 
-#### STL/SCL Code:
-```
-// Extract specific bit from queue
-#Value := #Queue.%X#Position;3
+#### STL Code:
+```stl
+      L     1
+      L     #Position          // bit index (0..15)
+      SLW                     // 1 << Position → creates bitmask
+      L     #Queue
+      AW                      // Queue AND bitmask
+      L     0
+      <>I                     // Compare result ≠ 0
+      =     #Value            // Store result in BOOL
 ```
