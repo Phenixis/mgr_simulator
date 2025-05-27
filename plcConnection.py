@@ -88,7 +88,7 @@ class PLCRead(Thread):
                         # read from PLC - Read 5 bytes from Merker area starting at MW0
                         self.sim.read_operation_count += 1
                         self.pps += 1
-                        self.data = self.plc.read_area(snap7.types.Areas.MK, 0, 0, 5)
+                        self.data = self.plc.read_area(snap7.type.Areas.MK, 0, 0, 5)
                         if self.data:
                             self.data_to_update = True
                             self.logger.debug(f"Read operation successful - {len(self.data)} bytes")
@@ -220,7 +220,7 @@ class PLCWrite(Thread):
                         # write to PLC - Write to Merker area starting at MW5
                         self.sim.write_operation_count += 1
                         self.pps += 1
-                        self.result = self.plc.write_area(snap7.types.Areas.MK, 0, 5, output_data)
+                        self.result = self.plc.write_area(snap7.type.Areas.MK, 0, 5, output_data)
                         self.logger.debug(f"Write operation successful - {len(output_data)} bytes")
                         log_plc_data(self.logger, output_data, "WRITE_DATA")
                         log_io_operation(self.logger, "WRITE", "MK", 0, 5, len(output_data), success=True)
