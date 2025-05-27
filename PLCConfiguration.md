@@ -1,7 +1,13 @@
+
+# PLC Configuration for Bottle Filling Station Simulation
+
+## Values
+
 INPUTS = values modified by the PLC
 OUTPUTS = values taken by the PLC to modify the INPUTS
 MEMORY = values stored in the PLC memory for state management
 
+```
 INPUTS = [
 	0.0 => production_line_run (BOOL)
 	0.1 => machineA_redLight (BOOL)
@@ -11,6 +17,7 @@ INPUTS = [
 	0.5 => machineB_orangeLight (BOOL)
 	0.6 => machineB_greenLight (BOOL)
 	0.7 => machineC_redLight (BOOL)
+
 	1.0 => machineC_orangeLight (BOOL)
 	1.1 => machineC_greenLight (BOOL)
 	1.2 => machineA_topRedLight (BOOL)
@@ -19,6 +26,7 @@ INPUTS = [
 	1.5 => machineB_topRedLight (BOOL)
 	1.6 => machineB_topOrangeLight (BOOL)
 	1.7 => machineB_topGreenLight (BOOL)
+	
 	2.0 => machineC_topRedLight (BOOL)
 	2.1 => machineC_topOrangeLight (BOOL)
 	2.2 => machineC_topGreenLight (BOOL)
@@ -27,6 +35,7 @@ INPUTS = [
 	2.5 => machineA_toolOn (BOOL)
 	2.6 => machineA_toolOff (BOOL)
 	2.7 => machineA_ack (BOOL)
+
 	3.0 => machineB_goDown (BOOL)
 	3.1 => machineB_goUp (BOOL)
 	3.2 => machineB_toolOn (BOOL)
@@ -35,6 +44,7 @@ INPUTS = [
 	3.5 => machineC_goDown (BOOL)
 	3.6 => machineC_goUp (BOOL)
 	3.7 => machineC_toolOn (BOOL)
+
 	4.0 => machineC_toolOff (BOOL)
 	4.1 => machineC_ack (BOOL)
 ]
@@ -48,6 +58,7 @@ OUTPUTS = [
 	5.5 => machineC_rightSensor (BOOL)
 	5.6 => machineA_startPos (BOOL)
 	5.7 => machineA_endPos (BOOL)
+
 	6.0 => machineA_toolWork (BOOL)
 	6.1 => machineA_toolReady (BOOL)
 	6.2 => machineA_error (BOOL)
@@ -56,6 +67,7 @@ OUTPUTS = [
 	6.5 => machineB_toolWork (BOOL)
 	6.6 => machineB_toolReady (BOOL)
 	6.7 => machineB_error (BOOL)
+
 	7.0 => machineC_startPos (BOOL)
 	7.1 => machineC_endPos (BOOL)
 	7.2 => machineC_toolWork (BOOL)
@@ -89,11 +101,19 @@ MEMORY = [
 
 	16.0: _B_to_C_queue (WORD)
 ]
+```
 
-NETWORK 1
+## NETWORKS
+
+### NETWORK 1
+
+```
 |--[/]machine_A_topOrangeLight--[/]machine_B_topOrangeLight--[/]machine_C_topOrangeLight------------------------( )production_line_run--|
+```
 
-NETWORK 2 - Machine A Sensor Lights
+### NETWORK 2 - Machine A Sensor Lights
+
+```
 |--[/]machineA_leftSensor--[/]machineA_rightSensor--------------------------------------------------------------( )machineA_redLight--|
 
 |--[ ]machineA_leftSensor--[/]machineA_rightSensor--+-----------------------------------------------------------( )machineA_orangeLight--|
@@ -101,8 +121,10 @@ NETWORK 2 - Machine A Sensor Lights
 |--[/]machineA_leftSensor--[ ]machineA_rightSensor--+
 
 |--[ ]machineA_leftSensor--[ ]machineA_rightSensor--------------------------------------------------------------( )machineA_greenLight--|
+```
 
-NETWORK 3 - Machine B Sensor Lights
+### NETWORK 3 - Machine B Sensor Lights
+```
 |--[/]machineB_leftSensor--[/]machineB_rightSensor--------------------------------------------------------------( )machineB_redLight--|
 
 |--[ ]machineB_leftSensor--[/]machineB_rightSensor--+-----------------------------------------------------------( )machineB_orangeLight--|
@@ -110,8 +132,11 @@ NETWORK 3 - Machine B Sensor Lights
 |--[ ]machineB_rightSensor--[/]machineB_leftSensor--+
 
 |--[ ]machineB_leftSensor--[ ]machineB_rightSensor--------------------------------------------------------------( )machineB_greenLight--|
+```
 
-NETWORK 4 - Machine C Sensor Lights
+### NETWORK 4 - Machine C Sensor Lights
+
+```
 |--[/]machineC_leftSensor--[/]machineC_rightSensor--------------------------------------------------------------( )machineC_redLight--|
 
 |--[ ]machineC_leftSensor--[/]machineC_rightSensor--+-----------------------------------------------------------( )machineC_orangeLight--|
@@ -119,8 +144,11 @@ NETWORK 4 - Machine C Sensor Lights
 |--[ ]machineC_rightSensor--[/]machineC_leftSensor--+
 
 |--[ ]machineC_leftSensor--[ ]machineC_rightSensor--------------------------------------------------------------( )machineC_greenLight--|
+```
 
-NETWORK 5 - Machine A Operation Start
+### NETWORK 5 - Machine A Operation Start
+
+```
 |--[ ]machineA_leftSensor--[ ]machineA_rightSensor--[ ]_openA--+--[/]production_line_run-------------------------( )machineA_ack--|
 															   |
 															   +------------------------------------------------( )machineA_topOrangeLight--|
@@ -128,9 +156,11 @@ NETWORK 5 - Machine A Operation Start
 															   +------------------------------------------------(/)machineA_topGreenLight--|
 															   |
 															   +------------------------------------------------(S)_openA_reset--|
+```
 
-NETWORK 6 - Machine B Operation Start
+### NETWORK 6 - Machine B Operation Start
 
+```
 |--[ ]machineB_leftSensor--[ ]machineB_rightSensor--[ ]_openB--+--[CALL FC_GetQueueBit]--[/]production_line_run--( )machineB_ack--|
                                                                 |  // Parameters:                                    |
                                                                 |  // Queue: _A_to_B_queue                          |
@@ -142,8 +172,11 @@ NETWORK 6 - Machine B Operation Start
                                                                 +---------------------------------------------(/)machineB_topGreenLight--|
                                                                 |                                                     |
                                                                 +---------------------------------------------(S)_openB_reset--|
+```
 
-NETWORK 7 - Machine C Operation Start
+### NETWORK 7 - Machine C Operation Start
+
+```
 |--[ ]machineC_leftSensor--[ ]machineC_rightSensor--[ ]_openC--+--[CALL FC_GetQueueBit]--[/]production_line_run--( )machineC_ack--|
                                                                 |  // Parameters:                                    |
                                                                 |  // Queue: _B_to_C_queue                          |
@@ -155,8 +188,11 @@ NETWORK 7 - Machine C Operation Start
                                                                 +---------------------------------------------(/)machineC_topGreenLight--|
                                                                 |                                                     |
                                                                 +---------------------------------------------(S)_openC_reset--|
+```
 
-NETWORK 8 - Machine A Quality Status
+### NETWORK 8 - Machine A Quality Status
+
+```
 |--[/]_openA--+--[ ]machineA_toolReady------------------------------------------------------------------------(S)_A_ok--|
                 |
                 +--[ ]machineA_error----------------------------------------------------------------------------(R)_A_ok--|
@@ -170,8 +206,11 @@ NETWORK 8 - Machine A Quality Status
                                           +--[/]_A_ok--+------------------------------------------------------( )machineA_topRedLight--|
                                                          |
                                                          +------------------------------------------------------(/)machineA_topGreenLight--|
+```
 
-NETWORK 9 - Machine B Quality Status
+### NETWORK 9 - Machine B Quality Status
+
+```
 |--[/]_openB--+--[ ]machineB_toolReady------------------------------------------------------------------------(S)_B_ok--|
                 |
                 +--[ ]machineB_error----------------------------------------------------------------------------(R)_B_ok--|
@@ -185,8 +224,11 @@ NETWORK 9 - Machine B Quality Status
                                           +--[/]_B_ok--+------------------------------------------------------( )machineB_topRedLight--|
                                                          |
                                                          +------------------------------------------------------(/)machineB_topGreenLight--|
+```
 
-NETWORK 10 - Machine C Quality Status
+### NETWORK 10 - Machine C Quality Status
+
+```
 |--[/]_openC--+--[ ]machineC_toolReady------------------------------------------------------------------------(S)_C_ok--|
                 |
                 +--[ ]machineC_error----------------------------------------------------------------------------(R)_C_ok--|
@@ -200,9 +242,11 @@ NETWORK 10 - Machine C Quality Status
                                           +--[/]_C_ok--+------------------------------------------------------( )machineC_topRedLight--|
                                                          |
                                                          +------------------------------------------------------(/)machineC_topGreenLight--|
+```
 
-NETWORK 11 - Machine A to B Quality Queue
+### NETWORK 11 - Machine A to B Quality Queue
 
+```
 // Add quality result to queue when part leaves Machine A
 |--[ ]_last_A_rightSensor--[/]machineA_rightSensor--[/]_openA--+--[ ]_A_ok----------[CALL FC_AddToQueue]--|
                                                                  |   // Input parameters:
@@ -215,9 +259,11 @@ NETWORK 11 - Machine A to B Quality Queue
                                                                  |   // Value: 0 (bad part)
                                                                  |
                                                                  +----------------------(S)_openA--|
+```
 
-NETWORK 12 - Machine B to C Quality Queue
+### NETWORK 12 - Machine B to C Quality Queue
 
+```
 // Add quality result to queue when part leaves Machine B
 |--[ ]_last_B_rightSensor--[/]machineB_rightSensor--[/]_openB--+--[ ]_B_ok----------[CALL FC_AddToQueue]--|
                                                                  |   // Input parameters:
@@ -240,8 +286,11 @@ NETWORK 12 - Machine B to C Quality Queue
                                                      |       // Queue: _B_to_C_queue
                                                      |
                                                      +--[/]_openC----(S)_openC--|
+```
 
-NETWORK 13 - Edge Detection Memory
+### NETWORK 13 - Edge Detection Memory
+
+```
 |--[ ]machineA_leftSensor---------------------------------------------------------------------------------------( )_last_A_leftSensor--|
 
 |--[ ]machineA_rightSensor--------------------------------------------------------------------------------------( )_last_A_rightSensor--|
@@ -253,22 +302,52 @@ NETWORK 13 - Edge Detection Memory
 |--[ ]machineC_leftSensor---------------------------------------------------------------------------------------( )_last_C_leftSensor--|
 
 |--[ ]machineC_rightSensor--------------------------------------------------------------------------------------( )_last_C_rightSensor--|
+```
 
-STL/SCL CODE
+## Function Blocks
+²
+### FC_AddToQueue
 
-FC_AddToQueue
+#### Input Parameters:
+
+Queue (IN_OUT WORD) - The queue to modify
+Value (IN BOOL) - Value to add (1 for good, 0 for bad)
+
+#### STL/SCL Code:
+```
 // Shift existing bits left by 1 position
 #Queue := SHL(IN := #Queue, N := 1);
-
 // Add new value to rightmost bit
 IF #Value THEN
     #Queue := #Queue OR 16#0001;
 END_IF;
+```
 
-FC_ShiftQueue
+### FC_ShiftQueue
+
+#### Input Parameters:
+
+Queue (IN_OUT WORD) - The queue to shift
+
+#### STL/SCL Code:
+```
 // Shift all bits right by 1 position
 #Queue := SHR(IN := #Queue, N := 1);
+```
 
-FC_GetQueueBit
+### FC_GetQueueBit
+
+#### Input Parameters:
+
+Queue (IN WORD) - The queue to read from
+Position (IN INT) - Bit position (0 = rightmost)
+
+#### Output Parameters:
+
+Value (OUT BOOL) - The bit value
+
+#### STL/SCL Code:
+```
 // Extract specific bit from queue
 #Value := #Queue.%X#Position;3
+```
