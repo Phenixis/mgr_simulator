@@ -66,15 +66,11 @@ class PLCRead(Thread):
             else:
                 if not self.data_to_update:
                     try:
-                        # read form PLC
+                        # read from PLC - Read 5 bytes from Merker area starting at MW0
                         self.sim.read_operation_count += 1
                         self.pps += 1
-                        self.data = self.plc.mb_read(0, 5)
-                        if self.result:
-                            self.data = bin(int.from_bytes(self.data, byteorder='little'))
-                            self.data = self.data[::-1]
-                            while self.data.__len__() < 37:
-                                self.data += "0"
+                        self.data = self.plc.read_area(snap7.types.Areas.MK, 0, 0, 5)
+                        if self.data:
                             self.data_to_update = True
                     except Exception as e:
                         try:
@@ -98,11 +94,12 @@ class PLCRead(Thread):
                             print(" Lost connection to PLC. Simulator will stop as PLC connection is required.")
                 if not self.sim.io_lock and self.data_to_update:
                     self.sim.io_lock = True
-                    for i in range(37):
-                        if self.data[i] == '1':
-                            self.sim.inputs[i] = True
-                        else:
-                            self.sim.inputs[i] = False
+                    # Extract individual bits from the read data
+                    for byte_idx in range(5):  # 5 bytes = 40 bits, but you use 37
+                        for bit_idx in range(8):
+                            if byte_idx * 8 + bit_idx < 37:  # Limit to 37 inputs
+                                bit_value = snap7.util.get_bool(self.data, byte_idx, bit_idx)
+                                self.sim.inputs[byte_idx * 8 + bit_idx] = bit_value
                     self.data_to_update = False
                     self.sim.io_lock = False
                 now = time.time()
@@ -170,20 +167,22 @@ class PLCWrite(Thread):
             else:
                 if not self.sim.io_lock:
                     self.sim.io_lock = True
-                    self.data = self.sim.outputs
+                    self.data = self.sim.outputs.copy()
                     self.sim.io_lock = False
-                    outputs_bin = ''
+                    
+                    # Prepare 3 bytes for 24 outputs
+                    output_data = bytearray(3)
                     for i in range(24):
+                        byte_idx = i // 8
+                        bit_idx = i % 8
                         if self.data[i]:
-                            outputs_bin += '1'
-                        else:
-                            outputs_bin += '0'
-                    outputs_bytes = int(outputs_bin[::-1], 2).to_bytes((len(outputs_bin) + 7) // 8, byteorder='little')
+                            snap7.util.set_bool(output_data, byte_idx, bit_idx, True)
+                    
                     try:
-                        # write to PLC
+                        # write to PLC - Write to Merker area starting at MW5
                         self.sim.write_operation_count += 1
                         self.pps += 1
-                        self.result = self.plc.mb_write(5, 3, outputs_bytes)
+                        self.result = self.plc.write_area(snap7.types.Areas.MK, 0, 5, output_data)
                     except Exception as e:
                         try:
                             e_str = e.args[0].decode()
