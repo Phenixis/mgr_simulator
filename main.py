@@ -17,6 +17,7 @@ from plcConnection import *
 from objects.machine import *
 from objects.bottle import *
 from objects.productionLine import ProductionLine
+from logger_config import setup_logger
 
 import sys
 import os
@@ -24,6 +25,13 @@ import os
 
 class Simulator:
     def __init__(self):
+        # Initialize logging system
+        self.loggers = setup_logger()
+        self.main_logger = self.loggers['main']
+        self.simulator_logger = self.loggers['simulator']
+        
+        self.main_logger.info("=== PLC Simulator Starting ===")
+        
         # initialize simulator window, etc.
         pg.init()
         pg.mixer.init()
@@ -319,11 +327,14 @@ class Simulator:
 
     def run(self):
         # Starting status/read/write threads for exchanging data with PLC
+        self.main_logger.info("Starting main simulation run")
+        self.main_logger.info(f"PLC Configuration - Address: {self.plc_address}, Rack: {self.plc_rack}, Slot: {self.plc_slot}, Port: {self.plc_port}")
         self.plc_read_thread.start()
         # Simulation loop
         self.running = True
         # Wait for PLC connection before starting simulation
         print("Waiting for PLC connection...")
+        self.main_logger.info("Waiting for PLC connection...")
         connection_wait_time = time.time()
         attempt_count = 0
         while not self.plc_read_thread.connected and self.running:
@@ -362,10 +373,14 @@ class Simulator:
             
         # If we exited the loop but aren't connected, exit
         if not self.plc_read_thread.connected:
+            self.main_logger.error("Failed to connect to PLC. Exiting simulation.")
             print("Failed to connect to PLC. Exiting.")
             self.running = False
+        else:
+            self.main_logger.info("PLC connection established successfully. Starting main simulation loop.")
             
         if self.timer_on:
+            self.main_logger.info(f"Timer enabled: {self.time_set} seconds")
             self.time_mem = time.time()
             
         while self.running:
@@ -373,6 +388,7 @@ class Simulator:
             
             # Check if we're still connected to PLC
             if not self.plc_read_thread.connected:
+                self.main_logger.warning("PLC connection lost during simulation. Stopping simulation.")
                 print("PLC connection lost. Stopping simulation.")
                 # Try one more time to reconnect
                 self.plc_read_thread.connection_attempts = 0
@@ -414,12 +430,15 @@ class Simulator:
             # timer execution
             if self.timer_on:
                 if time.time() - self.time_mem >= self.time_set:
+                    self.main_logger.info(f"Simulation ended by timer after {self.time_set} seconds")
                     print("Simulation end by timer, after " + str(self.time_set) + " sec.")
                     self.running = False
         # at the end finish threads processes
         if not self.running:
+            self.main_logger.info("Simulation ending - stopping PLC threads")
             self.plc_read_thread.running = False
             self.plc_read_thread.join()
+            self.main_logger.info("All PLC threads stopped. Simulation ended.")
 
     def events(self):
         # Simulation loop events
@@ -483,7 +502,9 @@ class Simulator:
                 if event.key == pg.K_F1:
                     self.show_help = not self.show_help
                 if event.key == pg.K_F2:
+                    old_state = self.start_simulation
                     self.start_simulation = not self.start_simulation
+                    self.simulator_logger.info(f"Simulation state changed: {old_state} -> {self.start_simulation} (via F2 key)")
                 if event.key == pg.K_F3:
                     updated_self_processing = True
                 if event.key == pg.K_F4:
@@ -665,13 +686,20 @@ class Simulator:
                 self.max_fps = 30
             self.texts[3][1] = self.render_text("max " + str(self.max_fps) + " FPS", 20, WHITE)
         if updated_self_processing:
+            old_state = self.self_processing_on
             self.self_processing_on = not self.self_processing_on
+            self.simulator_logger.info(f"Self-processing mode changed: {old_state} -> {self.self_processing_on}")
         if updated_manual_mode:
+            old_state = self.manual_mode_on
             self.manual_mode_on = not self.manual_mode_on
+            self.simulator_logger.info(f"Manual mode changed: {old_state} -> {self.manual_mode_on}")
             if self.manual_mode_on:
                 self.production_line_run = False
+                self.simulator_logger.info("Production line stopped due to manual mode activation")
         if updated_random_space:
+            old_state = self.random_space_on
             self.random_space_on = not self.random_space_on
+            self.simulator_logger.info(f"Random space mode changed: {old_state} -> {self.random_space_on}")
 
     def update(self):
         # Check PLC connection first
@@ -679,6 +707,7 @@ class Simulator:
             # Stop the simulation if not connected to PLC
             if self.start_simulation:
                 self.start_simulation = False
+                self.simulator_logger.warning("Simulation stopped: PLC connection required")
                 print("Simulation stopped: PLC connection required")
             return
             
@@ -753,6 +782,7 @@ class Simulator:
             # Stop the manual mode if not connected to PLC
             if self.manual_mode_on:
                 self.manual_mode_on = False
+                self.simulator_logger.warning("Manual mode disabled: PLC connection required")
                 print("Manual mode disabled: PLC connection required")
             return
             
@@ -785,6 +815,7 @@ class Simulator:
             # Stop self-processing if not connected to PLC
             if self.self_processing_on:
                 self.self_processing_on = False
+                self.simulator_logger.warning("Self-processing disabled: PLC connection required")
                 print("Self-processing disabled: PLC connection required")
             return
             
