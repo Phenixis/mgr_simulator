@@ -39,7 +39,7 @@ class PLCRead(Thread):
                     log_connection_attempt(self.logger, self.sim.plc_address, self.sim.plc_rack, self.sim.plc_slot, self.sim.plc_port, self.connection_attempts + 1, self.max_connection_attempts)
                     print(f"Attempting to connect to PLC at {self.sim.plc_address} (Attempt {self.connection_attempts + 1}/{self.max_connection_attempts})")
                     self.plc.connect(self.sim.plc_address, self.sim.plc_rack, self.sim.plc_slot, self.sim.plc_port)
-                    self.connected = self.plc.get_connected()
+                    self.connected = self.plc.get_connected()                    
                     if self.connected:
 
                         # Reset connection attempts on successful connection
@@ -48,10 +48,17 @@ class PLCRead(Thread):
                         
                         # Start other PLC threads
                         self.sim.plc_write_thread = PLCWrite(self.sim)
-                        self.sim.plc_status_thread = PLCStatus(self.sim)
+                        self.sim.plc_status_thread = PLCStatus(self.sim)                        
                         self.sim.plc_write_thread.start()
                         self.sim.plc_status_thread.start()
                         self.logger.info("PLC Write and Status threads started")
+                        
+                        # Write current input/output values on first connection
+                        if self.first_connection:
+                            self.logger.info("First connection detected - writing current simulator state to PLC")
+                            self._write_current_state_to_plc()
+                            self.first_connection = False
+                            self.logger.info("Initial state write completed")
                         
                         self.cpu_info = self.plc.get_cpu_info()
                         self.logger.info(f"PLC CPU Info - Name: {self.cpu_info.ModuleName.decode()}, Type: {self.cpu_info.ModuleTypeName.decode()}")
@@ -102,21 +109,10 @@ class PLCRead(Thread):
                             e_str = e.args[0].decode()
                         except:
                             e_str = str(e)
-                        
-                        self.logger.error(f"Read operation failed: {e_str}")
+                            self.logger.error(f"Read operation failed: {e_str}")
                         log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=False, error=e_str)
                         if e_str[0:4] == " ISO" or "connection" in e_str.lower():
                             self.logger.warning("Connection lost detected during read operation")
-                            
-                            # Try to reset Merker memory before disconnecting (emergency cleanup)
-                            try:
-                                merker_size = 64  # Smaller reset area when connection is unstable
-                                reset_data = bytearray(merker_size)
-                                self.plc.write_area(snap7.type.Areas.MK, 0, 0, reset_data)
-                                self.logger.info(f"Emergency Merker reset successful - {merker_size} bytes cleared")
-                                log_io_operation(self.logger, "EMERGENCY_RESET", "MK", 0, 0, merker_size, success=True)
-                            except Exception as reset_e:
-                                self.logger.warning(f"Emergency Merker reset failed: {str(reset_e)}")
                             
                             self.plc.disconnect()
                             self.connected = False
@@ -149,15 +145,78 @@ class PLCRead(Thread):
                     text = "Dow/Up rate: " + str(self.pps) + "/" + str(self.sim.write_pps) + " p/s"
                     self.sim.texts[1][5] = self.sim.render_text(text, 15, WHITE)
                     self.pps = 0
-                    self.time_mem = now        
+                    self.time_mem = now
         if self.connected:
             self.plc.disconnect()
             if self.sim.plc_write_thread.running:
                 self.sim.plc_write_thread.running = False
-                self.sim.plc_write_thread.close()  # This will handle Merker reset and proper cleanup
+                self.sim.plc_write_thread.join()
             if self.sim.plc_status_thread.running:
                 self.sim.plc_status_thread.running = False
                 self.sim.plc_status_thread.join()
+
+    def _write_current_state_to_plc(self):
+        """Write current simulator input/output state to PLC on first connection."""
+        try:
+            self.logger.info("Writing current simulator state to PLC Merker area")
+            
+            # Get current simulator output state (what the PLC should read as inputs)
+            # Based on PLCConfiguration.md - the outputs array contains 24 values (0-23)
+            if not self.sim.io_lock:
+                self.sim.io_lock = True
+                current_outputs = self.sim.outputs.copy()
+                self.sim.io_lock = False
+                
+                # Prepare output data (3 bytes for 24 outputs) - write to MW5 (same as normal writes)
+                output_data = bytearray(3)
+                for i in range(min(24, len(current_outputs))):
+                    byte_idx = i // 8
+                    bit_idx = i % 8
+                    if current_outputs[i]:
+                        snap7.util.set_bool(output_data, byte_idx, bit_idx, True)
+                
+                # Write outputs to Merker area (MW5-MW7)
+                self.plc.write_area(snap7.type.Areas.MK, 0, 5, output_data)
+                self.logger.info(f"Current outputs written to PLC - {len(output_data)} bytes at MW5")
+                log_plc_data(self.logger, output_data, "INITIAL_OUTPUTS")
+                log_io_operation(self.logger, "INIT_WRITE", "MK", 0, 5, len(output_data), success=True)
+                
+                # Prepare typical input state (production_line_run=False, all lights red initially)
+                # This represents a safe initial state for the simulator
+                input_data = bytearray(5)  # 5 bytes for 37 inputs
+                
+                # Set machine sensor lights to red (safe state)
+                # According to PLCConfiguration.md:
+                # 0.1 => machineA_redLight, 0.4 => machineB_redLight, 0.7 => machineC_redLight
+                snap7.util.set_bool(input_data, 0, 1, True)  # machineA_redLight
+                snap7.util.set_bool(input_data, 0, 4, True)  # machineB_redLight  
+                snap7.util.set_bool(input_data, 0, 7, True)  # machineC_redLight
+                
+                # Set machine top lights to green (ready state)
+                # 1.4 => machineA_topGreenLight, 1.7 => machineB_topGreenLight, 2.2 => machineC_topGreenLight
+                snap7.util.set_bool(input_data, 1, 4, True)  # machineA_topGreenLight
+                snap7.util.set_bool(input_data, 1, 7, True)  # machineB_topGreenLight
+                snap7.util.set_bool(input_data, 2, 2, True)  # machineC_topGreenLight
+                
+                # Write inputs to Merker area (MW0-MW4) 
+                self.plc.write_area(snap7.type.Areas.MK, 0, 0, input_data)
+                self.logger.info(f"Initial input state written to PLC - {len(input_data)} bytes at MW0")
+                log_plc_data(self.logger, input_data, "INITIAL_INPUTS")
+                log_io_operation(self.logger, "INIT_WRITE", "MK", 0, 0, len(input_data), success=True)
+                
+                self.logger.info("Current simulator state successfully written to PLC")
+                print("Initial simulator state written to PLC")
+                
+        except Exception as e:
+            try:
+                e_str = e.args[0].decode()
+            except:
+                e_str = str(e)
+            
+            self.logger.error(f"Failed to write current state to PLC: {e_str}")
+            log_io_operation(self.logger, "INIT_WRITE", "MK", 0, 0, 0, success=False, error=e_str)
+            print(f"Warning: Could not write initial state to PLC: {e_str}")
+            # Don't fail the connection for this - just log and continue
 
 
 class PLCWrite(Thread):
@@ -172,7 +231,7 @@ class PLCWrite(Thread):
         self.result = 1
         self.time_mem = 0
         self.time_set = 1
-        self.pps = 0
+        self.pps = 0        
         self.connection_attempts = 0
         self.max_connection_attempts = 5
         
@@ -242,21 +301,10 @@ class PLCWrite(Thread):
                             e_str = e.args[0].decode()
                         except:
                             e_str = str(e)
-                        
-                        self.logger.error(f"Write operation failed: {e_str}")
+                            self.logger.error(f"Write operation failed: {e_str}")
                         log_io_operation(self.logger, "WRITE", "MK", 0, 5, len(output_data), success=False, error=e_str)
                         if e_str[0:4] == " ISO" or "connection" in e_str.lower():
                             self.logger.warning("Connection lost detected during write operation")
-                            
-                            # Try to reset Merker memory before disconnecting (while connection might still work)
-                            try:
-                                merker_size = 64  # Smaller reset area when connection is unstable
-                                reset_data = bytearray(merker_size)
-                                self.plc.write_area(snap7.type.Areas.MK, 0, 0, reset_data)
-                                self.logger.info(f"Emergency Merker reset successful - {merker_size} bytes cleared")
-                                log_io_operation(self.logger, "EMERGENCY_RESET", "MK", 0, 0, merker_size, success=True)
-                            except Exception as reset_e:
-                                self.logger.warning(f"Emergency Merker reset failed: {str(reset_e)}")
                             
                             self.plc.disconnect()
                             self.connected = False
@@ -270,68 +318,8 @@ class PLCWrite(Thread):
                     self.sim.write_pps = self.pps
                     self.pps = 0
                     self.time_mem = now
-        
         if self.connected:
             self.plc.disconnect()
-    
-    def close(self):
-        """Close the PLC connection and stop the thread."""
-        self.running = False
-        if self.connected:
-            self.sim.io_lock = True
-            
-            # First check if connection is still valid before attempting reset
-            try:
-                # Try a simple operation to verify connection is still alive
-                test_state = self.plc.get_connected()
-                if not test_state:
-                    self.logger.warning("PLC connection already lost, skipping Merker reset")
-                    self.connected = False
-                    self.sim.io_lock = False
-                    return
-            except Exception as e:
-                self.logger.warning(f"PLC connection test failed, skipping Merker reset: {str(e)}")
-                self.connected = False
-                self.sim.io_lock = False
-                return
-            
-            # Reset entire Merker memory area - typically 1024 bytes (8192 bits) for S7-1500
-            # We'll reset a reasonable range that covers all typical usage
-            merker_size = 256  # Reset first 256 bytes of Merker memory (MW0 to MW255)
-            reset_data = bytearray(merker_size)
-            # All bytes are already 0 in bytearray, so no need to explicitly set them
-            
-            try:
-                # Set a shorter timeout for the reset operation
-                self.plc.write_area(snap7.type.Areas.MK, 0, 0, reset_data)
-                self.logger.info(f"Merker memory reset successful - {merker_size} bytes cleared (MW0 to MW{merker_size-1})")
-                log_plc_data(self.logger, reset_data[:16], "RESET_MERKER_DATA")  # Log first 16 bytes as sample
-                log_io_operation(self.logger, "RESET", "MK", 0, 0, merker_size, success=True)
-                print(f"MERKER MEMORY RESET - {merker_size} bytes cleared")
-            except Exception as e:
-                try:
-                    e_str = e.args[0].decode()
-                except:
-                    e_str = str(e)
-                
-                # Don't treat connection timeout as a critical error during shutdown
-                if "timeout" in e_str.lower() or "connection" in e_str.lower():
-                    self.logger.warning(f"Merker memory reset skipped due to connection issue: {e_str}")
-                else:
-                    self.logger.error(f"Merker memory reset failed: {e_str}")
-                    log_io_operation(self.logger, "RESET", "MK", 0, 0, merker_size, success=False, error=e_str)
-            self.sim.io_lock = False
-            
-            try:
-                self.plc.disconnect()
-                self.logger.info("PLCWrite thread disconnected successfully")
-            except Exception as e:
-                self.logger.warning(f"Note during PLCWrite thread disconnection: {str(e)}")
-                
-        # Wait for thread to complete
-        if self.is_alive():
-            self.join(timeout=2.0)  # Wait max 2 seconds for thread to finish
-        self.logger.info("PLCWrite thread stopped")
 
 
 class PLCStatus(Thread):
