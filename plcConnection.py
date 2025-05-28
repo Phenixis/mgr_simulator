@@ -87,6 +87,7 @@ class PLCRead(Thread):
                     time.sleep(2)
             else:
                 if self.first_connection:
+                    self.first_connection = False
                     # Prepare 5 bytes for 40 outputs
                     reset_data = bytearray(5)
                     for i in range(40):
@@ -95,7 +96,6 @@ class PLCRead(Thread):
                         snap7.util.set_bool(reset_data, byte_idx, bit_idx, False)
                     self.plc.write_area(snap7.type.Areas.DB, 0, 0, reset_data)
                     print("RESETTING INPUTS")
-                    self.first_connection = False
                 else:
                     if not self.data_to_update:
                         try:
@@ -235,6 +235,7 @@ class PLCWrite(Thread):
                     try:
                         if self.first_connection:
                             # Prepare 3 bytes for 24 outputs
+                            self.first_connection = False
                             reset_data = bytearray(3)
                             for i in range(24):
                                 byte_idx = i // 8
@@ -242,7 +243,6 @@ class PLCWrite(Thread):
                                 snap7.util.set_bool(reset_data, byte_idx, bit_idx, False)
                             self.result = self.plc.write_area(snap7.type.Areas.DB, 0, 5, reset_data)
                             print("RESETTING OUTPUTS")
-                            self.first_connection = False
                         else:
                             # write to PLC - Write to Merker area starting at MW5
                             self.sim.write_operation_count += 1
