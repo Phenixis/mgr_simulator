@@ -25,7 +25,7 @@ class PLCRead(Thread):
         self.max_connection_attempts = 5  # Maximum number of attempts before giving up
         
         # Initialize logger
-        self.logger = logging.getLogger('PLC_READ')
+        self.logger = logging.getLogger('PLC_READ ')
         self.logger.info("PLCRead thread initialized")
 
     def run(self):
@@ -93,7 +93,7 @@ class PLCRead(Thread):
                             self.data_to_update = True
                             self.logger.debug(f"Read operation successful - {len(self.data)} bytes")
                             log_plc_data(self.logger, self.data, "READ_DATA")
-                            log_io_operation(self.logger, "READ", "MK", 0, 0, 5, success=True)
+                            log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=True)
                     except Exception as e:
                         try:
                             e_str = e.args[0].decode()
@@ -101,7 +101,7 @@ class PLCRead(Thread):
                             e_str = str(e)
                         
                         self.logger.error(f"Read operation failed: {e_str}")
-                        log_io_operation(self.logger, "READ", "MK", 0, 0, 5, success=False, error=e_str)
+                        log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=False, error=e_str)
                         
                         if e_str[0:4] == " ISO" or "connection" in e_str.lower():
                             self.logger.warning("Connection lost detected during read operation")
