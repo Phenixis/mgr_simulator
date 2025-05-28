@@ -24,6 +24,8 @@ class PLCRead(Thread):
         self.connection_attempts = 0
         self.max_connection_attempts = 5  # Maximum number of attempts before giving up
         
+        self.first_connection = True  # Flag to track if this is the first connection attempt
+        
         # Initialize logger
         self.logger = logging.getLogger('PLC_READ ')
         self.logger.info("PLCRead thread initialized")
@@ -39,6 +41,16 @@ class PLCRead(Thread):
                     self.plc.connect(self.sim.plc_address, self.sim.plc_rack, self.sim.plc_slot, self.sim.plc_port)
                     self.connected = self.plc.get_connected()
                     if self.connected:
+                        if self.first_connection:
+                            # Prepare 3 bytes for 24 outputs
+                            reset_data = bytearray(3)
+                            for i in range(24):
+                                byte_idx = i // 8
+                                bit_idx = i % 8
+                                snap7.util.set_bool(reset_data, byte_idx, bit_idx, False)
+                            self.plc.write_area(snap7.type.Areas.DB, 0, 0, reset_data)
+                            self.first_connection = False
+
                         # Reset connection attempts on successful connection
                         self.connection_attempts = 0
                         self.logger.info("Successfully connected to PLC")

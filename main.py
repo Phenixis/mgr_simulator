@@ -822,6 +822,7 @@ class Simulator:
             
         # Simulation self processing loop update
         # starting production line after all operations complete
+        # NETWORK 1
         if not self.machine_A_top_ROG[1] and not self.machine_B_top_ROG[1] and not self.machine_C_top_ROG[1]:
             self.sp_during_operation = False
         if not self.sp_during_operation:
@@ -829,6 +830,7 @@ class Simulator:
 
         # update machine sensor lights state...
         # ...for machine A
+        # NETWORK 2
         if self.machine_A_LR[0] and self.machine_A_LR[1]:
             if self.machine_A_operation_in[5]:
                 self.machine_A_operation_in[5] = False
@@ -846,6 +848,7 @@ class Simulator:
         else:
             self.machine_A_ROG = [True, False, False] # Turn on the red light
         # ...for machine B
+        # NETWORK 3
         if self.machine_B_LR[0] and self.machine_B_LR[1]:
             if self.machine_B_operation_in[5]:
                 self.machine_B_operation_in[5] = False
@@ -865,6 +868,7 @@ class Simulator:
         else:
             self.machine_B_ROG = [True, False, False] # Turn on the red light
         # ...for machine C
+        # NETWORK 4
         if self.machine_C_LR[0] and self.machine_C_LR[1]:
             if self.machine_C_operation_in[5]:
                 self.machine_C_operation_in[5] = False
@@ -885,6 +889,7 @@ class Simulator:
             self.machine_C_ROG = [True, False, False] # Turn on the red light
         # bottle left operation...
         # ...on machine A
+        # NETWORK 8
         if self.sp_last_A_LR[1] and not self.machine_A_LR[1]:
             if not self.sp_openA:
                 if self.sp_A_ok:
@@ -893,6 +898,7 @@ class Simulator:
                     self.sp_A_to_B += '0'
                 self.sp_openA = True
         # ...on machine B
+        # NETWORK 9
         if not self.machine_B_LR[1] and self.sp_last_B_LR[1]:
             self.sp_A_to_B = self.sp_A_to_B[1:]
             if not self.sp_openB:
@@ -904,12 +910,14 @@ class Simulator:
             else:
                 self.sp_B_to_C += '0'
         # ...on machine C
+        # NETWORK 11
         if not self.machine_C_LR[1] and self.sp_last_C_LR[1]:
             self.sp_B_to_C = self.sp_B_to_C[1:]
             if not self.sp_openC:
                 self.sp_openC = True
 
         # cycle A
+        # NETWORK 5
         if not self.sp_openA:
             if self.machine_A_operation_out[3]: # If machine A is in operation 
                 self.sp_A_ok = True
@@ -927,6 +935,7 @@ class Simulator:
                     self.machine_A_top_ROG[2] = False # Turn off the green light
                 self.sp_A_end_pos = False
         # cycle B
+        # NETWORK 6
         if not self.sp_openB:
             if self.machine_B_operation_out[3]:
                 self.sp_B_ok = True
@@ -944,6 +953,7 @@ class Simulator:
                     self.machine_B_top_ROG[2] = False
                 self.sp_B_end_pos = False
         # cycle C
+        # NETWORK 7
         if not self.sp_openC:
             if self.machine_C_operation_out[3]:
                 self.sp_C_ok = True
@@ -962,6 +972,7 @@ class Simulator:
                 self.sp_C_end_pos = False
 
         # machines LR sensor edge detection variables
+        # NETWORK 10
         self.sp_last_A_LR[0] = self.machine_A_LR[0]
         self.sp_last_A_LR[1] = self.machine_A_LR[1]
         self.sp_last_B_LR[0] = self.machine_B_LR[0]
