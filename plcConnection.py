@@ -42,9 +42,9 @@ class PLCRead(Thread):
                     self.connected = self.plc.get_connected()
                     if self.connected:
                         if self.first_connection:
-                            # Prepare 3 bytes for 24 outputs
-                            reset_data = bytearray(3)
-                            for i in range(24):
+                            # Prepare 5 bytes for 40 outputs
+                            reset_data = bytearray(5)
+                            for i in range(40):
                                 byte_idx = i // 8
                                 bit_idx = i % 8
                                 snap7.util.set_bool(reset_data, byte_idx, bit_idx, False)
@@ -175,6 +175,8 @@ class PLCWrite(Thread):
         self.connection_attempts = 0
         self.max_connection_attempts = 5
         
+        self.first_connection = True  # Flag to track if this is the first connection attempt
+        
         # Initialize logger
         self.logger = logging.getLogger('PLC_WRITE')
         self.logger.info("PLCWrite thread initialized")
@@ -216,6 +218,15 @@ class PLCWrite(Thread):
                     time.sleep(2)
             else:
                 if not self.sim.io_lock:
+                    if self.first_connection:
+                        # Prepare 3 bytes for 24 outputs
+                        reset_data = bytearray(3)
+                        for i in range(24):
+                            byte_idx = i // 8
+                            bit_idx = i % 8
+                            snap7.util.set_bool(reset_data, byte_idx, bit_idx, False)
+                        self.plc.write_area(snap7.type.Areas.DB, 0, 0, reset_data)
+                        self.first_connection = False
                     self.sim.io_lock = True
                     self.data = self.sim.outputs.copy()
                     self.sim.io_lock = False
