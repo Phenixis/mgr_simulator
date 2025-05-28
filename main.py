@@ -132,8 +132,8 @@ class Simulator:
         # Preparing io area
         for i in range(37):
             self.inputs.append(False)
-        # Remove the hardcoded production_line_run = True
-        # self.inputs[0] = True  # This was causing the issue
+        
+        self.inputs[0] = True 
         for i in range(24):
             self.outputs.append(False)
         # Reading settings from .py file

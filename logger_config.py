@@ -62,3 +62,7 @@ def log_io_operation(logger, operation_type, area, db_number, start, size, succe
         logger.info(f"{operation_type} operation successful - Area:{area}, DB:{db_number}, Start:{start}, Size:{size}")
     else:
         logger.error(f"{operation_type} operation failed - Area:{area}, DB:{db_number}, Start:{start}, Size:{size}, Error: {error}")
+
+def log_simulation_event(logger, event_type, details):
+    """Helper function to log simulation events"""
+    logger.info(f"SIMULATION EVENT - {event_type}: {details}")
