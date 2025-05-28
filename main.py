@@ -987,9 +987,22 @@ class Simulator:
             self.machine_A_ROG = self.inputs[1:4]
             self.machine_B_ROG = self.inputs[4:7]
             self.machine_C_ROG = self.inputs[7:10]
-            self.machine_A_top_ROG = self.inputs[10:13]
-            self.machine_B_top_ROG = self.inputs[13:16]
-            self.machine_C_top_ROG = self.inputs[16:19]
+            
+            # Only update top lights if they should be controlled by PLC
+            # In normal operation, top lights should start as green (ready state)
+            if not hasattr(self, '_plc_initialized'):
+                # First time initialization - set top lights to green (ready state)
+                self.machine_A_top_ROG = [False, False, True]  # Green
+                self.machine_B_top_ROG = [False, False, True]  # Green  
+                self.machine_C_top_ROG = [False, False, True]  # Green
+                self._plc_initialized = True
+                self.simulator_logger.info("PLC processing initialized - top lights set to ready state (green)")
+            else:
+                # Normal operation - update from PLC only if needed
+                self.machine_A_top_ROG = self.inputs[10:13]
+                self.machine_B_top_ROG = self.inputs[13:16]
+                self.machine_C_top_ROG = self.inputs[16:19]
+        
             self.machine_A_operation_in = self.inputs[19:25]
             self.machine_B_operation_in = self.inputs[25:31]
             self.machine_C_operation_in = self.inputs[31:37]
@@ -1007,8 +1020,8 @@ class Simulator:
                             self.machine_C_operation_out[0], self.machine_C_operation_out[1],
                             self.machine_C_operation_out[2], self.machine_C_operation_out[3],
                             self.machine_C_operation_out[4], False, False, False]
-
-            self.io_lock = False
+        
+        self.io_lock = False
 
     def draw(self):
         # Simulation drawing loop
