@@ -225,7 +225,7 @@ class PLCWrite(Thread):
                             byte_idx = i // 8
                             bit_idx = i % 8
                             snap7.util.set_bool(reset_data, byte_idx, bit_idx, False)
-                        self.plc.write_area(snap7.type.Areas.DB, 0, 0, reset_data)
+                        self.plc.write_area(snap7.type.Areas.DB, 0, 5, reset_data)
                         self.first_connection = False
                     self.sim.io_lock = True
                     self.data = self.sim.outputs.copy()
