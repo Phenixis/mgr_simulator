@@ -104,7 +104,7 @@ class PLCRead(Thread):
                         if self.data:
                             self.data_to_update = True
                             self.logger.debug(f"Read operation successful - {len(self.data)} bytes")
-                            log_plc_data(self.logger, self.data, "READ_DATA")
+                            log_plc_data(self.logger, self.data, "READ_DATA ")
                             log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=True)
                     except Exception as e:
                         try:

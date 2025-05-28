@@ -45,12 +45,12 @@ def log_plc_data(logger, data, data_type="UNKNOWN"):
     """Helper function to log PLC data in a readable format"""
     if data:
         if isinstance(data, (bytes, bytearray)):
-            hex_data = ' '.join([f'{b:02X}' for b in data])
+            # hex_data = ' '.join([f'{b:02X}' for b in data])
             binary_data = ' '.join([f'{b:08b}' for b in data])
-            logger.debug(f"{data_type} - HEX: {hex_data}")
-            logger.debug(f"{data_type} - BIN: {binary_data}")
+            # logger.info(f"{data_type} - HEX: {hex_data}")
+            logger.info(f"{data_type} - BIN: {binary_data}")
         else:
-            logger.debug(f"{data_type}: {data}")
+            logger.info(f"{data_type}: {data}")
 
 def log_connection_attempt(logger, address, rack, slot, port, attempt, max_attempts):
     """Helper function to log connection attempts"""
