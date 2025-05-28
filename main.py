@@ -132,7 +132,8 @@ class Simulator:
         # Preparing io area
         for i in range(37):
             self.inputs.append(False)
-        self.inputs[0] = True
+        # Remove the hardcoded production_line_run = True
+        # self.inputs[0] = True  # This was causing the issue
         for i in range(24):
             self.outputs.append(False)
         # Reading settings from .py file
@@ -831,24 +832,24 @@ class Simulator:
         if self.machine_A_LR[0] and self.machine_A_LR[1]:
             if self.machine_A_operation_in[5]:
                 self.machine_A_operation_in[5] = False
-            self.machine_A_ROG = [False, False, True]
+            self.machine_A_ROG = [False, False, True] # Turn on the green light
             if self.sp_openA:
                 self.production_line_run = False
                 self.sp_during_operation = True
                 self.sp_openA = False
                 self.sp_A_ok = False
                 self.machine_A_operation_in[5] = True
-                self.machine_A_top_ROG[1] = True
-                self.machine_A_top_ROG[2] = False
+                self.machine_A_top_ROG[1] = True # Turn on the top orange light
+                self.machine_A_top_ROG[2] = False # Turn off the top green light
         elif self.machine_A_LR[0] or self.machine_A_LR[1]:
-            self.machine_A_ROG = [False, True, False]
+            self.machine_A_ROG = [False, True, False] # Turn on the orange light
         else:
-            self.machine_A_ROG = [True, False, False]
+            self.machine_A_ROG = [True, False, False] # Turn on the red light
         # ...for machine B
         if self.machine_B_LR[0] and self.machine_B_LR[1]:
             if self.machine_B_operation_in[5]:
                 self.machine_B_operation_in[5] = False
-            self.machine_B_ROG = [False, False, True]
+            self.machine_B_ROG = [False, False, True] # Turn on the green light
             if self.sp_openB:
                 if self.sp_A_to_B != '':
                     if self.sp_A_to_B[0] == '1':
@@ -857,17 +858,17 @@ class Simulator:
                         self.sp_openB = False
                         self.sp_B_ok = False
                         self.machine_B_operation_in[5] = True
-                        self.machine_B_top_ROG[1] = True
-                        self.machine_B_top_ROG[2] = False
-        elif self.machine_B_LR[0] or self.machine_B_LR[1]:
-            self.machine_B_ROG = [False, True, False]
+                        self.machine_B_top_ROG[1] = True # Turn on the top orange light
+                        self.machine_B_top_ROG[2] = False # Turn off the top green light
+        elif self.machine_B_LR[0] or self.machine_B_LR[1]: 
+            self.machine_B_ROG = [False, True, False] # Turn on the orange light
         else:
-            self.machine_B_ROG = [True, False, False]
+            self.machine_B_ROG = [True, False, False] # Turn on the red light
         # ...for machine C
         if self.machine_C_LR[0] and self.machine_C_LR[1]:
             if self.machine_C_operation_in[5]:
                 self.machine_C_operation_in[5] = False
-            self.machine_C_ROG = [False, False, True]
+            self.machine_C_ROG = [False, False, True] # Turn on the green light
             if self.sp_openC:
                 if self.sp_B_to_C != '':
                     if self.sp_B_to_C[0] == '1':
@@ -876,12 +877,12 @@ class Simulator:
                         self.sp_openC = False
                         self.sp_C_ok = False
                         self.machine_C_operation_in[5] = True
-                        self.machine_C_top_ROG[1] = True
-                        self.machine_C_top_ROG[2] = False
+                        self.machine_C_top_ROG[1] = True # Turn on the top orange light
+                        self.machine_C_top_ROG[2] = False # Turn off the top green light
         elif self.machine_C_LR[0] or self.machine_C_LR[1]:
-            self.machine_C_ROG = [False, True, False]
+            self.machine_C_ROG = [False, True, False] # Turn on the orange light
         else:
-            self.machine_C_ROG = [True, False, False]
+            self.machine_C_ROG = [True, False, False] # Turn on the red light
         # bottle left operation...
         # ...on machine A
         if self.sp_last_A_LR[1] and not self.machine_A_LR[1]:
