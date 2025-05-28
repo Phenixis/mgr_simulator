@@ -96,60 +96,61 @@ class PLCRead(Thread):
                     self.plc.write_area(snap7.type.Areas.DB, 0, 0, reset_data)
                     print("RESETTING INPUTS")
                     self.first_connection = False
-                if not self.data_to_update:
-                    try:
-                        # read from PLC - Read 5 bytes from Merker area starting at MW0
-                        self.sim.read_operation_count += 1
-                        self.pps += 1
-                        self.data = self.plc.read_area(snap7.type.Areas.MK, 0, 0, 5)
-                        if self.data:
-                            self.data_to_update = True
-                            self.logger.debug(f"Read operation successful - {len(self.data)} bytes")
-                            log_plc_data(self.logger, self.data, "READ_DATA ")
-                            log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=True)
-                    except Exception as e:
+                else:
+                    if not self.data_to_update:
                         try:
-                            e_str = e.args[0].decode()
-                        except:
-                            e_str = str(e)
-                        
-                        self.logger.error(f"Read operation failed: {e_str}")
-                        log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=False, error=e_str)
-                        
-                        if e_str[0:4] == " ISO" or "connection" in e_str.lower():
-                            self.logger.warning("Connection lost detected during read operation")
-                            self.plc.disconnect()
-                            self.connected = False
-                            self.pps = 0
-                            self.sim.texts[1][1] = self.sim.render_text("PLC connected: " + str(self.connected), 15, WHITE)
-                            if self.sim.plc_write_thread and self.sim.plc_write_thread.running:
-                                self.sim.plc_write_thread.running = False
-                                self.sim.plc_write_thread.join()
-                            if self.sim.plc_status_thread and self.sim.plc_status_thread.running:
-                                self.sim.plc_status_thread.running = False
-                                self.sim.plc_status_thread.join()
-                            print(self.name + ":")
-                            print(e_str)
-                            print(" Lost connection to PLC. Simulator will stop as PLC connection is required.")
-                if not self.sim.io_lock and self.data_to_update:
-                    self.sim.io_lock = True
-                    # Extract individual bits from the read data
-                    self.logger.debug("Processing read data - extracting bits")
-                    for byte_idx in range(5):  # 5 bytes = 40 bits, but you use 37
-                        for bit_idx in range(8):
-                            if byte_idx * 8 + bit_idx < 37:  # Limit to 37 inputs
-                                bit_value = snap7.util.get_bool(self.data, byte_idx, bit_idx)
-                                self.sim.inputs[byte_idx * 8 + bit_idx] = bit_value
-                    self.data_to_update = False
-                    self.sim.io_lock = False
-                    self.logger.debug("Data processing completed - inputs updated")
-                now = time.time()
-                if now - self.time_mem >= self.time_set:
-                    self.sim.read_pps = self.pps
-                    text = "Dow/Up rate: " + str(self.pps) + "/" + str(self.sim.write_pps) + " p/s"
-                    self.sim.texts[1][5] = self.sim.render_text(text, 15, WHITE)
-                    self.pps = 0
-                    self.time_mem = now
+                            # read from PLC - Read 5 bytes from Merker area starting at MW0
+                            self.sim.read_operation_count += 1
+                            self.pps += 1
+                            self.data = self.plc.read_area(snap7.type.Areas.MK, 0, 0, 5)
+                            if self.data:
+                                self.data_to_update = True
+                                self.logger.debug(f"Read operation successful - {len(self.data)} bytes")
+                                log_plc_data(self.logger, self.data, "READ_DATA ")
+                                log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=True)
+                        except Exception as e:
+                            try:
+                                e_str = e.args[0].decode()
+                            except:
+                                e_str = str(e)
+                            
+                            self.logger.error(f"Read operation failed: {e_str}")
+                            log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=False, error=e_str)
+                            
+                            if e_str[0:4] == " ISO" or "connection" in e_str.lower():
+                                self.logger.warning("Connection lost detected during read operation")
+                                self.plc.disconnect()
+                                self.connected = False
+                                self.pps = 0
+                                self.sim.texts[1][1] = self.sim.render_text("PLC connected: " + str(self.connected), 15, WHITE)
+                                if self.sim.plc_write_thread and self.sim.plc_write_thread.running:
+                                    self.sim.plc_write_thread.running = False
+                                    self.sim.plc_write_thread.join()
+                                if self.sim.plc_status_thread and self.sim.plc_status_thread.running:
+                                    self.sim.plc_status_thread.running = False
+                                    self.sim.plc_status_thread.join()
+                                print(self.name + ":")
+                                print(e_str)
+                                print(" Lost connection to PLC. Simulator will stop as PLC connection is required.")
+                    if not self.sim.io_lock and self.data_to_update:
+                        self.sim.io_lock = True
+                        # Extract individual bits from the read data
+                        self.logger.debug("Processing read data - extracting bits")
+                        for byte_idx in range(5):  # 5 bytes = 40 bits, but you use 37
+                            for bit_idx in range(8):
+                                if byte_idx * 8 + bit_idx < 37:  # Limit to 37 inputs
+                                    bit_value = snap7.util.get_bool(self.data, byte_idx, bit_idx)
+                                    self.sim.inputs[byte_idx * 8 + bit_idx] = bit_value
+                        self.data_to_update = False
+                        self.sim.io_lock = False
+                        self.logger.debug("Data processing completed - inputs updated")
+                    now = time.time()
+                    if now - self.time_mem >= self.time_set:
+                        self.sim.read_pps = self.pps
+                        text = "Dow/Up rate: " + str(self.pps) + "/" + str(self.sim.write_pps) + " p/s"
+                        self.sim.texts[1][5] = self.sim.render_text(text, 15, WHITE)
+                        self.pps = 0
+                        self.time_mem = now
         if self.connected:
             self.plc.disconnect()
             if self.sim.plc_write_thread.running:
@@ -239,16 +240,17 @@ class PLCWrite(Thread):
                                 byte_idx = i // 8
                                 bit_idx = i % 8
                                 snap7.util.set_bool(reset_data, byte_idx, bit_idx, False)
-                            self.plc.write_area(snap7.type.Areas.DB, 0, 5, reset_data)
+                            self.result = self.plc.write_area(snap7.type.Areas.DB, 0, 5, reset_data)
                             print("RESETTING OUTPUTS")
                             self.first_connection = False
-                        # write to PLC - Write to Merker area starting at MW5
-                        self.sim.write_operation_count += 1
-                        self.pps += 1
-                        self.result = self.plc.write_area(snap7.type.Areas.MK, 0, 5, output_data)
-                        self.logger.debug(f"Write operation successful - {len(output_data)} bytes")
-                        log_plc_data(self.logger, output_data, "WRITE_DATA")
-                        log_io_operation(self.logger, "WRITE", "MK", 0, 5, len(output_data), success=True)
+                        else:
+                            # write to PLC - Write to Merker area starting at MW5
+                            self.sim.write_operation_count += 1
+                            self.pps += 1
+                            self.result = self.plc.write_area(snap7.type.Areas.MK, 0, 5, output_data)
+                            self.logger.debug(f"Write operation successful - {len(output_data)} bytes")
+                            log_plc_data(self.logger, output_data, "WRITE_DATA")
+                            log_io_operation(self.logger, "WRITE", "MK", 0, 5, len(output_data), success=True)
                     except Exception as e:
                         try:
                             e_str = e.args[0].decode()
