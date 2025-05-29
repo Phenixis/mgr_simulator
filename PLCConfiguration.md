@@ -43,18 +43,21 @@ INPUTS = [
       2.5 => machineA_toolOn (BOOL)
       2.6 => machineA_toolOff (BOOL)
       2.7 => machineA_ack (BOOL)
-
-      3.0 => machineB_goDown (BOOL)
-      3.1 => machineB_goUp (BOOL)
-      3.2 => machineB_toolOn (BOOL)
-      3.3 => machineB_toolOff (BOOL)
-      3.4 => machineB_ack (BOOL)
-      3.5 => machineC_goDown (BOOL)
-      3.6 => machineC_goUp (BOOL)
-      3.7 => machineC_toolOn (BOOL)
-
-      4.0 => machineC_toolOff (BOOL)
-      4.1 => machineC_ack (BOOL)
+      
+      3.0 => machineA_unknown (BOOL)
+      3.1 => machineB_goDown (BOOL)
+      3.2 => machineB_goUp (BOOL)
+      3.3 => machineB_toolOn (BOOL)
+      3.4 => machineB_toolOff (BOOL)
+      3.5 => machineB_ack (BOOL)
+      3.6 => machineB_unknown (BOOL)
+      3.7 => machineC_goDown (BOOL)
+      
+      4.0 => machineC_goUp (BOOL)
+      4.1 => machineC_toolOn (BOOL)
+      4.2 => machineC_toolOff (BOOL)
+      4.3 => machineC_ack (BOOL)
+      4.4 => machineC_unknown (BOOL)
 ]
 
 OUTPUTS = [
