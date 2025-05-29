@@ -1,4 +1,5 @@
 import pygame as pg
+import logging
 
 from objects.laser import Laser
 from objects.light import Light, Light2
@@ -179,8 +180,10 @@ class Machine(pg.sprite.Sprite):
                                 elif self.current_bottle.filler_name != "" and self.sim.filler_index < 3:
                                     if self.current_bottle.filler_name != self.sim.fillers[self.sim.filler_index].name:
                                         self.operation_error = True
+                                        self.sim.simulator_logger.error(f"Machine {self.type}: Filler mismatch - bottle has '{self.current_bottle.filler_name}' but machine has '{self.sim.fillers[self.sim.filler_index].name}'")
                                 else:
                                     self.operation_error = True
+                                    self.sim.simulator_logger.error(f"Machine {self.type}: Invalid filler configuration - filler_index: {self.sim.filler_index}")
             if self.operation_tool_off and not self.last_tool_off_state:
                 self.operation_tool_ready = False
                 self.operation_tool_work = False
@@ -198,15 +201,19 @@ class Machine(pg.sprite.Sprite):
                             self.current_bottle_pos = self.current_bottle.rect.x
                         else:
                             self.operation_error = True
+                            self.sim.simulator_logger.error(f"Machine {self.type}: Bottle moved outside allowed position during tool operation")
                             self.current_bottle = None
                             self.current_bottle_pos = None
             # raise error
             if self.operation_go_down and self.operation_go_up:
                 self.operation_error = True
+                self.sim.simulator_logger.error(f"Machine {self.type}: Conflicting commands - both go_down and go_up are active")
             if self.operation_tool_on and self.operation_tool_off:
                 self.operation_error = True
+                self.sim.simulator_logger.error(f"Machine {self.type}: Conflicting commands - both tool_on and tool_off are active")
             if (self.operation_tool_on or self.operation_tool_work) and (self.operation_go_down or self.operation_go_up):
                 self.operation_error = True
+                self.sim.simulator_logger.error(f"Machine {self.type}: Invalid operation - tool operation and movement commanded simultaneously")
             if self.operation_error:
                 self.current_bottle = None
                 self.current_bottle_pos = None
@@ -249,10 +256,15 @@ class Machine(pg.sprite.Sprite):
                 self.operation_tool_ready = True
         if self.current_bottle.closed:
             self.operation_error = True
+            self.sim.simulator_logger.error(f"Machine {self.type}: Cannot drill - bottle is already closed")
 
     def operation_b(self):
         if self.current_bottle.filled >= self.current_bottle.overfilled or self.current_bottle.closed:
             self.operation_error = True
+            if self.current_bottle.filled >= self.current_bottle.overfilled:
+                self.sim.simulator_logger.error(f"Machine {self.type}: Cannot fill - bottle is overfilled (filled: {self.current_bottle.filled:.2f}, overfill limit: {self.current_bottle.overfilled:.2f})")
+            else:
+                self.sim.simulator_logger.error(f"Machine {self.type}: Cannot fill - bottle is already closed")
         else:
             if not self.current_bottle.broken and not self.operation_error:
                 if self.sim.fps > 0:
@@ -276,6 +288,7 @@ class Machine(pg.sprite.Sprite):
         if self.current_time - self.tool_started >= self.tool_duration and not self.operation_tool_ready:
             if self.current_bottle.closed:
                 self.operation_error = True
+                self.sim.simulator_logger.error(f"Machine {self.type}: Cannot close cap - bottle is already closed")
             else:
                 self.operation_tool_ready = True
                 self.current_bottle.closed = True
