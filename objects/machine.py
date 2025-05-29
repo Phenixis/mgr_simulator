@@ -292,9 +292,7 @@ class Machine(pg.sprite.Sprite):
             else:
                 self.operation_tool_ready = True
                 self.current_bottle.closed = True
-                if self.current_bottle.broken:
-                    self.current_bottle.image = self.current_bottle.image_4
-                else:
+                if not self.current_bottle.broken:
                     self.current_bottle.image = self.current_bottle.image_3
 
     def self_processing(self):
