@@ -35,38 +35,38 @@ class PLCRead(Thread):
             self.sim.read_thread_count += 1
             if not self.connected:
                 try:
-                    self.logger.info(f"Attempting to connect to PLC at {self.sim.plc_address} (Attempt {self.connection_attempts + 1}/{self.max_connection_attempts})")
-                    log_connection_attempt(self.logger, self.sim.plc_address, self.sim.plc_rack, self.sim.plc_slot, self.sim.plc_port, self.connection_attempts + 1, self.max_connection_attempts)
-                    print(f"Attempting to connect to PLC at {self.sim.plc_address} (Attempt {self.connection_attempts + 1}/{self.max_connection_attempts})")
+                    # self.logger.info(f"Attempting to connect to PLC at {self.sim.plc_address} (Attempt {self.connection_attempts + 1}/{self.max_connection_attempts})")
+                    # log_connection_attempt(self.logger, self.sim.plc_address, self.sim.plc_rack, self.sim.plc_slot, self.sim.plc_port, self.connection_attempts + 1, self.max_connection_attempts)
+                    # print(f"Attempting to connect to PLC at {self.sim.plc_address} (Attempt {self.connection_attempts + 1}/{self.max_connection_attempts})")
                     self.plc.connect(self.sim.plc_address, self.sim.plc_rack, self.sim.plc_slot, self.sim.plc_port)
                     self.connected = self.plc.get_connected()                    
                     if self.connected:
 
                         # Reset connection attempts on successful connection
                         self.connection_attempts = 0
-                        self.logger.info("Successfully connected to PLC")
+                        # self.logger.info("Successfully connected to PLC")
                         
                         # Start other PLC threads
                         self.sim.plc_write_thread = PLCWrite(self.sim)
                         self.sim.plc_status_thread = PLCStatus(self.sim)                        
                         self.sim.plc_write_thread.start()
                         self.sim.plc_status_thread.start()
-                        self.logger.info("PLC Write and Status threads started")
+                        # self.logger.info("PLC Write and Status threads started")
                         
                         # Write current input/output values on first connection
                         if self.first_connection:
-                            self.logger.info("First connection detected - writing current simulator state to PLC")
+                            # self.logger.info("First connection detected - writing current simulator state to PLC")
                             self._write_current_state_to_plc()
                             self.first_connection = False
-                            self.logger.info("Initial state write completed")
+                            # self.logger.info("Initial state write completed")
                         
                         self.cpu_info = self.plc.get_cpu_info()
-                        self.logger.info(f"PLC CPU Info - Name: {self.cpu_info.ModuleName.decode()}, Type: {self.cpu_info.ModuleTypeName.decode()}")
+                        # self.logger.info(f"PLC CPU Info - Name: {self.cpu_info.ModuleName.decode()}, Type: {self.cpu_info.ModuleTypeName.decode()}")
                         
                         self.sim.texts[1][1] = self.sim.render_text("PLC connected: " + str(self.connected), 15, WHITE)
                         self.sim.texts[1][2] = self.sim.render_text("PLC name: " + self.cpu_info.ModuleName.decode(), 15, WHITE)
                         self.sim.texts[1][3] = self.sim.render_text("PLC type: " + self.cpu_info.ModuleTypeName.decode(), 15, WHITE)
-                        print(f"Successfully connected to PLC: {self.cpu_info.ModuleName.decode()}")
+                        # print(f"Successfully connected to PLC: {self.cpu_info.ModuleName.decode()}")
                         self.time_mem = time.time()
                     else:
                         # If connect() didn't raise an exception but we're still not connected
@@ -101,9 +101,9 @@ class PLCRead(Thread):
                         self.data = self.plc.read_area(snap7.type.Areas.MK, 0, 0, 5)
                         if self.data:
                             self.data_to_update = True
-                            self.logger.info(f"READ operation successful - {len(self.data)} bytes read")
-                            log_plc_data(self.logger, self.data, "READ_DATA ")
-                            log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=True)
+                            # self.logger.info(f"READ operation successful - {len(self.data)} bytes read")
+                            # log_plc_data(self.logger, self.data, "READ_DATA ")
+                            # log_io_operation(self.logger, "READ ", "MK", 0, 0, 5, success=True)
                     except Exception as e:
                         try:
                             e_str = e.args[0].decode()
@@ -130,7 +130,7 @@ class PLCRead(Thread):
                 if not self.sim.io_lock and self.data_to_update:
                     self.sim.io_lock = True
                     # Extract individual bits from the read data
-                    self.logger.info("Processing read data - extracting bits")
+                    # self.logger.info("Processing read data - extracting bits")
                     for byte_idx in range(5):  # 5 bytes = 40 bits, but you use 37
                         for bit_idx in range(8):
                             if byte_idx * 8 + bit_idx < 37:  # Limit to 37 inputs
@@ -138,7 +138,7 @@ class PLCRead(Thread):
                                 self.sim.inputs[byte_idx * 8 + bit_idx] = bit_value
                     self.data_to_update = False
                     self.sim.io_lock = False
-                    self.logger.info("Data processing completed - inputs updated")
+                    # self.logger.info("Data processing completed - inputs updated")
                 now = time.time()
                 if now - self.time_mem >= self.time_set:
                     self.sim.read_pps = self.pps
@@ -158,7 +158,7 @@ class PLCRead(Thread):
     def _write_current_state_to_plc(self):
         """Write current simulator input/output state to PLC on first connection."""
         try:
-            self.logger.info("Writing current simulator state to PLC Merker area")
+            # self.logger.info("Writing current simulator state to PLC Merker area")
             
             # Get current simulator output state (what the PLC should read as inputs)
             # Based on PLCConfiguration.md - the outputs array contains 24 values (0-23)
@@ -177,9 +177,9 @@ class PLCRead(Thread):
                 
                 # Write outputs to Merker area (MW5-MW7)
                 self.plc.write_area(snap7.type.Areas.MK, 0, 5, output_data)
-                self.logger.info(f"Current outputs written to PLC - {len(output_data)} bytes at MW5")
-                log_plc_data(self.logger, output_data, "INITIAL_OUTPUTS")
-                log_io_operation(self.logger, "INIT_WRITE", "MK", 0, 5, len(output_data), success=True)
+                # self.logger.info(f"Current outputs written to PLC - {len(output_data)} bytes at MW5")
+                # log_plc_data(self.logger, output_data, "INITIAL_OUTPUTS")
+                # log_io_operation(self.logger, "INIT_WRITE", "MK", 0, 5, len(output_data), success=True)
                 
                 # Prepare typical input state (production_line_run=False, all lights red initially)
                 # This represents a safe initial state for the simulator
@@ -200,12 +200,12 @@ class PLCRead(Thread):
                 
                 # Write inputs to Merker area (MW0-MW4) 
                 self.plc.write_area(snap7.type.Areas.MK, 0, 0, input_data)
-                self.logger.info(f"Initial input state written to PLC - {len(input_data)} bytes at MW0")
-                log_plc_data(self.logger, input_data, "INITIAL_INPUTS")
-                log_io_operation(self.logger, "INIT_WRITE", "MK", 0, 0, len(input_data), success=True)
+                # self.logger.info(f"Initial input state written to PLC - {len(input_data)} bytes at MW0")
+                # log_plc_data(self.logger, input_data, "INITIAL_INPUTS")
+                # log_io_operation(self.logger, "INIT_WRITE", "MK", 0, 0, len(input_data), success=True)
                 
-                self.logger.info("Current simulator state successfully written to PLC")
-                print("Initial simulator state written to PLC")
+                # self.logger.info("Current simulator state successfully written to PLC")
+                # print("Initial simulator state written to PLC")
                 
         except Exception as e:
             try:
@@ -244,12 +244,12 @@ class PLCWrite(Thread):
             self.sim.write_thread_count += 1
             if not self.connected:
                 try:
-                    self.logger.info(f"Write thread attempting to connect to PLC at {self.sim.plc_address}")
+                    # self.logger.info(f"Write thread attempting to connect to PLC at {self.sim.plc_address}")
                     self.plc.connect(self.sim.plc_address, self.sim.plc_rack, self.sim.plc_slot, self.sim.plc_port)
                     self.connected = self.plc.get_connected()
                     if self.connected:
                         self.connection_attempts = 0
-                        self.logger.info("Write thread successfully connected to PLC")
+                        # self.logger.info("Write thread successfully connected to PLC")
                         self.time_mem = time.time()
                     else:
                         self.connection_attempts += 1
@@ -293,9 +293,9 @@ class PLCWrite(Thread):
                         self.sim.write_operation_count += 1
                         self.pps += 1
                         self.result = self.plc.write_area(snap7.type.Areas.MK, 0, 5, output_data)
-                        self.logger.info(f"WRITE operation successful - {len(output_data)} bytes written")
-                        log_plc_data(self.logger, output_data, "WRITE_DATA")
-                        log_io_operation(self.logger, "WRITE", "MK", 0, 5, len(output_data), success=True)
+                        # self.logger.info(f"WRITE operation successful - {len(output_data)} bytes written")
+                        # log_plc_data(self.logger, output_data, "WRITE_DATA")
+                        # log_io_operation(self.logger, "WRITE", "MK", 0, 5, len(output_data), success=True)
                     except Exception as e:
                         try:
                             e_str = e.args[0].decode()
@@ -336,19 +336,19 @@ class PLCStatus(Thread):
         
         # Initialize logger
         self.logger = logging.getLogger('PLC_STATUS')
-        self.logger.info("PLCStatus thread initialized")
+        # self.logger.info("PLCStatus thread initialized")
 
     def run(self):
         while self.running:
             self.sim.status_thread_count += 1
             if not self.connected:
                 try:
-                    self.logger.info(f"Status thread attempting to connect to PLC at {self.sim.plc_address}")
+                    # self.logger.info(f"Status thread attempting to connect to PLC at {self.sim.plc_address}")
                     self.plc.connect(self.sim.plc_address, self.sim.plc_rack, self.sim.plc_slot, self.sim.plc_port)
                     self.connected = self.plc.get_connected()
                     if self.connected:
                         self.connection_attempts = 0
-                        self.logger.info("Status thread successfully connected to PLC")
+                        # self.logger.info("Status thread successfully connected to PLC")
                     else:
                         self.connection_attempts += 1
                         self.logger.warning(f"Status thread connection attempt {self.connection_attempts} failed")
@@ -378,7 +378,7 @@ class PLCStatus(Thread):
                     self.sim.status_operation_count += 1
                     self.cpu_state = self.plc.get_cpu_state()
                     self.sim.texts[1][4] = self.sim.render_text("CPU state: " + str(self.cpu_state), 15, WHITE)
-                    self.logger.info(f"CPU state read successfully: {self.cpu_state}")
+                    # self.logger.info(f"CPU state read successfully: {self.cpu_state}")
                 except Exception as e:
                     try:
                         e_str = e.args[0].decode()
