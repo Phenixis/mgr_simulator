@@ -87,291 +87,203 @@ OUTPUTS = [
 ]
 
 MEMORY = [
-      10.0: _openA (BOOL)
-      10.1: _openA_reset (BOOL)
-      10.2: _A_ok (BOOL)
-      10.3: _A_end_pos (BOOL)
-      10.4: _last_A_rightSensor (BOOL)
-      10.5: _last_A_leftSensor (BOOL)
-      10.6: _openB (BOOL)
-      10.7: _openB_reset (BOOL)
+      8.0 => _machineA_hasBottle (BOOL)
+      8.1 => _machineA_working (BOOL)
+      8.2 => _machineA_operation_done (BOOL)
+      8.3 => _machineB_hasBottle (BOOL)
+      8.4 => _machineB_working (BOOL)
+      8.5 => _machineB_operation_done (BOOL)
+      8.6 => _machineC_hasBottle (BOOL)
+      8.7 => _machineC_working (BOOL)
 
-      11.0: _B_ok (BOOL)
-      11.1: _B_end_pos (BOOL)
-      11.2: _last_B_rightSensor (BOOL)
-      11.3: _last_B_leftSensor (BOOL)
-      11.4: _openC (BOOL)
-      11.5: _openC_reset (BOOL)
-      11.6: _C_ok (BOOL)
-      11.7: _C_end_pos (BOOL)
-
-      12.0: _last_C_rightSensor (BOOL)
-      12.1: _last_C_leftSensor (BOOL)
-
-      13.0: _A_to_B_queue (WORD)
-
-      16.0: _B_to_C_queue (WORD)
+      9.0 => _machineC_operation_done (BOOL)
 ]
 ```
 
 ## NETWORKS
 
-### NETWORK 1 - Production Line Run condition
+### NETWORK 1 - Production Line Run
 
 ```
-|--[/]machineA_topOrangeLight--[/]machineB_topOrangeLight--[/]machineC_topOrangeLight---------------------------------------------------------------------(S)production_line_run--|
+|--[/]_machineA_working--[/]_machineB_working--[/]_machineC_working---------------------------------------------------------------------( )production_line_run--|
 ```
 
-### NETWORK 2 - Machine A Sensor Lights
+### NETWORK 2 - Machine A stops production line when bottle
 
 ```
-|--[/]machineA_leftSensor--[/]machineA_rightSensor-----------------------------------------------------------------------------------------------------------( )machineA_redLight--|
+|--[ ]machineA_leftSensor--[ ]machineA_rightSensor-----------------------------------------------------------------------------------------------------------( )_machineA_hasBottle--|
+// If left sensor and right sensor are both triggered, then the machine has a bottle
 
-|--[ ]machineA_leftSensor--[/]machineA_rightSensor--+--------------------------------------------------------------------------------------------------------( )machineA_orangeLight--|
+|--[/]_machineA_operation_done--[ ]machineA_startPos--[ ]machineA_leftSensor--[ ]machineA_rightSensor--------------------------------------------------------(S)_machineA_working--|
+// If the operation is not done, the machine is still at its starting position and the sensors are triggered, it starts working
+
+|--[ ]_machineA_operation_done--[ ]machineA_startPos--[ ]machineA_leftSensor--[ ]machineA_rightSensor--------------------------------------------------------(R)_machineA_working--|
+// If the operation is done, the machine is at its starting position and the sensors are triggered, it stops working
+```
+
+### NETWORK 3 - Machine A lights
+```
+|--[/]machineA_error--[ ]_machineA_hasBottle---------------------------------------------------------------------------------------------------( )machineA_topOrangeLight--|
+// If there is no error and the machine has a bottle, the top orange light is on
+
+|--[/]machineA_error--[/]_machineA_hasBottle---------------------------------------------------------------------------------------------------( )machineA_topGreenLight--|
+// If there is no error and the machine does not have a bottle, the top green light is on
+
+|--[ ]machineA_error---------------------------------------------------------------------------------------------------------------------------( )machineA_topRedLight--|
+// If there is an error, the top red light is on
+
+|--[ ]machineA_leftSensor--[/]machineA_rightSensor--+------------------------------------------------------------------------------------------( )machineA_orangeLight--|
                                                     |
 |--[/]machineA_leftSensor--[ ]machineA_rightSensor--+
+// If one of the sensors is triggered, the orange light is on
 
-|--[ ]machineA_leftSensor--[ ]machineA_rightSensor-----------------------------------------------------------------------------------------------------------( )machineA_greenLight--|
+|--[/]machineA_leftSensor--[/]machineA_rightSensor---------------------------------------------------------------------------------------------( )machineA_redLight--|
+// If both sensors are not triggered, the red light is on
+
+|--[ ]machineA_leftSensor--[ ]machineA_rightSensor---------------------------------------------------------------------------------------------( )machineA_greenLight--|
+// If both sensors are triggered, the green light is on
 ```
 
-### NETWORK 3 - Machine B Sensor Lights
-```
-|--[/]machineB_leftSensor--[/]machineB_rightSensor-----------------------------------------------------------------------------------------------------------( )machineB_redLight--|
+### NETWORK 4 - Machine A tool
 
-|--[ ]machineB_leftSensor--[/]machineB_rightSensor--+--------------------------------------------------------------------------------------------------------( )machineB_orangeLight--|
+```
+|--[/]_machineA_operation_done--[ ]_machineA_hasBottle--[/]machineA_endPos---------------------------------------------------------------------( )machineA_goDown--|
+// If the operation is not done, the machine has a bottle and is not at its end position, it goes down
+
+|--[/]_machineA_operation_done--[ ]_machineA_hasBottle--[ ]machineA_endPos--[/]machineA_goDown--[/]machineA_toolOff----------------------------( )machineA_toolOn--|
+// If the operation is not done, the machine has a bottle, is at its end position, is not going down, and the tool is off, it turns the tool on
+
+                                                                                                |  TON  |
+|--[/]_machineA_operation_done--[ ]_machineA_hasBottle--[ ]machineA_endPos--[ ]machineA_toolOn--|IN----Q|--------------------------------------(S)_machineA_operation_done--|
+                                                                                       T#250ms--|PT   ET|--
+// If the operation is not done, the machine has a bottle, is at its end position, and the tool is on, it waits for 250ms before marking the operation as done
+
+|--[ ]_machineA_operation_done--[ ]_machineA_hasBottle--[ ]machineA_endPos--[/]machineA_goUp--[/]machineA_toolOn-------------------------------( )machineA_toolOff--|
+// If the operation is done, the machine has a bottle, is at its end position, is not going up, and the tool is not on, it turns the tool off.
+
+|--[ ]_machineA_operation_done--[ ]_machineA_hasBottle--[/]machineA_toolWork-------------------------------------------------------------------( )machineA_goUp--|
+// If the operation is done, the machine has a bottle, and the tool is not working, it goes up
+
+|--[ ]_machineA_operation_done--[ ]machineA_leftSensor--[/]machineA_rightSensor--[ ]machineA_startPos------------------------------------------(R)_machineA_operation_done--|
+// If the operation is done, the left sensor is triggered, the right sensor is not triggered, and the machine is at its starting position, it resets the operation done flag
+```
+
+### NETWORK 5 - Machine B stops production line when bottle
+
+```
+|--[ ]machineB_leftSensor--[ ]machineB_rightSensor-----------------------------------------------------------------------------------------------------------( )_machineB_hasBottle--|
+// If left sensor and right sensor are both triggered, then the machine has a bottle
+
+|--[/]_machineB_operation_done--[ ]machineB_startPos--[ ]machineB_leftSensor--[ ]machineB_rightSensor--------------------------------------------------------(S)_machineB_working--|
+// If the operation is not done, the machine is still at its starting position and the sensors are triggered, it starts working
+
+|--[ ]_machineB_operation_done--[ ]machineB_startPos--[ ]machineB_leftSensor--[ ]machineB_rightSensor--------------------------------------------------------(R)_machineB_working--|
+// If the operation is done, the machine is at its starting position and the sensors are triggered, it stops working
+```
+
+### NETWORK 6 - Machine B lights
+```
+|--[/]machineB_error--[ ]_machineB_hasBottle---------------------------------------------------------------------------------------------------( )machineB_topOrangeLight--|
+// If there is no error and the machine has a bottle, the top orange light is on
+
+|--[/]machineB_error--[/]_machineB_hasBottle---------------------------------------------------------------------------------------------------( )machineB_topGreenLight--|
+// If there is no error and the machine does not have a bottle, the top green light is on
+
+|--[ ]machineB_error---------------------------------------------------------------------------------------------------------------------------( )machineB_topRedLight--|
+// If there is an error, the top red light is on
+
+|--[ ]machineB_leftSensor--[/]machineB_rightSensor--+------------------------------------------------------------------------------------------( )machineB_orangeLight--|
                                                     |
-|--[ ]machineB_rightSensor--[/]machineB_leftSensor--+
+|--[/]machineB_leftSensor--[ ]machineB_rightSensor--+
+// If one of the sensors is triggered, the orange light is on
 
-|--[ ]machineB_leftSensor--[ ]machineB_rightSensor-----------------------------------------------------------------------------------------------------------( )machineB_greenLight--|
+|--[/]machineB_leftSensor--[/]machineB_rightSensor---------------------------------------------------------------------------------------------( )machineB_redLight--|
+// If both sensors are not triggered, the red light is on
+
+|--[ ]machineB_leftSensor--[ ]machineB_rightSensor---------------------------------------------------------------------------------------------( )machineB_greenLight--|
+// If both sensors are triggered, the green light is on
 ```
 
-### NETWORK 4 - Machine C Sensor Lights
+### NETWORK 7 - Machine B tool
 
 ```
-|--[/]machineC_leftSensor--[/]machineC_rightSensor-----------------------------------------------------------------------------------------------------------( )machineC_redLight--|
+|--[/]_machineB_operation_done--[ ]_machineB_hasBottle--[/]machineB_endPos---------------------------------------------------------------------( )machineB_goDown--|
+// If the operation is not done, the machine has a bottle and is not at its end position, it goes down
 
-|--[ ]machineC_leftSensor--[/]machineC_rightSensor--+--------------------------------------------------------------------------------------------------------( )machineC_orangeLight--|
+|--[/]_machineB_operation_done--[ ]_machineB_hasBottle--[ ]machineB_endPos--[/]machineB_goDown--[/]machineB_toolOff----------------------------( )machineB_toolOn--|
+// If the operation is not done, the machine has a bottle, is at its end position, is not going down, and the tool is off, it turns the tool on
+
+                                                                                                |  TON  |
+|--[/]_machineB_operation_done--[ ]_machineB_hasBottle--[ ]machineB_endPos--[ ]machineB_toolOn--|IN----Q|--------------------------------------(S)_machineB_operation_done--|
+                                                                                       T#750ms--|PT   ET|--
+// If the operation is not done, the machine has a bottle, is at its end position, and the tool is on, it waits for 750ms before marking the operation as done
+
+|--[ ]_machineB_operation_done--[ ]_machineB_hasBottle--[ ]machineB_endPos--[/]machineB_goUp--[/]machineB_toolOn-------------------------------( )machineB_toolOff--|
+// If the operation is done, the machine has a bottle, is at its end position, is not going up, and the tool is not on, it turns the tool off.
+
+|--[ ]_machineB_operation_done--[ ]_machineB_hasBottle--[/]machineB_toolWork-------------------------------------------------------------------( )machineB_goUp--|
+// If the operation is done, the machine has a bottle, and the tool is not working, it goes up
+
+|--[ ]_machineB_operation_done--[ ]machineB_leftSensor--[/]machineB_rightSensor--[ ]machineB_startPos------------------------------------------(R)_machineB_operation_done--|
+// If the operation is done, the left sensor is triggered, the right sensor is not triggered, and the machine is at its starting position, it resets the operation done flag
+```
+
+### NETWORK 8 - Machine C stops production line when bottle
+
+```
+|--[ ]machineC_leftSensor--[ ]machineC_rightSensor-----------------------------------------------------------------------------------------------------------( )_machineC_hasBottle--|
+// If left sensor and right sensor are both triggered, then the machine has a bottle
+
+|--[/]_machineC_operation_done--[ ]machineC_startPos--[ ]machineC_leftSensor--[ ]machineC_rightSensor--------------------------------------------------------(S)_machineC_working--|
+// If the operation is not done, the machine is still at its starting position and the sensors are triggered, it starts working
+
+|--[ ]_machineC_operation_done--[ ]machineC_startPos--[ ]machineC_leftSensor--[ ]machineC_rightSensor--------------------------------------------------------(R)_machineC_working--|
+// If the operation is done, the machine is at its starting position and the sensors are triggered, it stops working
+```
+
+### NETWORK 9 - Machine C lights
+```
+|--[/]machineC_error--[ ]_machineC_hasBottle---------------------------------------------------------------------------------------------------( )machineC_topOrangeLight--|
+// If there is no error and the machine has a bottle, the top orange light is on
+
+|--[/]machineC_error--[/]_machineC_hasBottle---------------------------------------------------------------------------------------------------( )machineC_topGreenLight--|
+// If there is no error and the machine does not have a bottle, the top green light is on
+
+|--[ ]machineC_error---------------------------------------------------------------------------------------------------------------------------( )machineC_topRedLight--|
+// If there is an error, the top red light is on
+
+|--[ ]machineC_leftSensor--[/]machineC_rightSensor--+------------------------------------------------------------------------------------------( )machineC_orangeLight--|
                                                     |
-|--[ ]machineC_rightSensor--[/]machineC_leftSensor--+
+|--[/]machineC_leftSensor--[ ]machineC_rightSensor--+
+// If one of the sensors is triggered, the orange light is on
 
-|--[ ]machineC_leftSensor--[ ]machineC_rightSensor-----------------------------------------------------------------------------------------------------------( )machineC_greenLight--|
+|--[/]machineC_leftSensor--[/]machineC_rightSensor---------------------------------------------------------------------------------------------( )machineC_redLight--|
+// If both sensors are not triggered, the red light is on
+
+|--[ ]machineC_leftSensor--[ ]machineC_rightSensor---------------------------------------------------------------------------------------------( )machineC_greenLight--|
+// If both sensors are triggered, the green light is on
 ```
 
-### NETWORK 5 - Machine A Operation Start
+### NETWORK 10 - Machine C tool
 
 ```
-|--[ ]machineA_leftSensor--[ ]machineA_rightSensor--[ ]_openA--+----------------------------------------------------------------------( )machineA_ack--|
-                                                               |
-                                                               +---------------------------------------------------------------------------------------------(S)_openA_reset--|
-                                                               |
-                                                               +---------------------------------------------------------------------------------------------(R)production_line_run--|
-                                                               |
-                                                               +---------------------------------------------------------------------------------------------(S)machineA_topOrangeLight--|
-```
+|--[/]_machineC_operation_done--[ ]_machineC_hasBottle--[/]machineC_endPos---------------------------------------------------------------------( )machineC_goDown--|
+// If the operation is not done, the machine has a bottle and is not at its end position, it goes down
 
-### NETWORK 6 - Machine B Operation Start
+|--[/]_machineC_operation_done--[ ]_machineC_hasBottle--[ ]machineC_endPos--[/]machineC_goDown--[/]machineC_toolOff----------------------------( )machineC_toolOn--|
+// If the operation is not done, the machine has a bottle, is at its end position, is not going down, and the tool is off, it turns the tool on
 
-```
-|--[ ]machineB_leftSensor--[ ]machineB_rightSensor--[ ]_openB--[        CALL FC_GetQueueBit        ]--[ ]FC_GetQueueBit_DB.Value--+--( )machineB_ack--|
-                                                               |  Parameters:                      |                              |
-                                                               |  Queue: _A_to_B_queue             |                              |
-                                                               |  Position: 0                      |                              |
-                                                               |  Value: FC_GetQueueBit_DB.Value   |                              |
-                                                               // You save the value where it already is to use it just after     |
-                                                                                                                                  +---(S)_openB_reset--|
-                                                                                                                                  |
-                                                                                                                                  +---(R)production_line_run--|
-                                                                                                                                  |
-                                                                                                                                  +---(S)machineB_topOrangeLight--|
-```
+                                                                                                |  TON  |
+|--[/]_machineC_operation_done--[ ]_machineC_hasBottle--[ ]machineC_endPos--[ ]machineC_toolOn--|IN----Q|--------------------------------------(S)_machineC_operation_done--|
+                                                                                       T#600ms--|PT   ET|--
+// If the operation is not done, the machine has a bottle, is at its end position, and the tool is on, it waits for 600ms before marking the operation as done
 
-### NETWORK 7 - Machine C Operation Start
+|--[ ]_machineC_operation_done--[ ]_machineC_hasBottle--[ ]machineC_endPos--[/]machineC_goUp--[/]machineC_toolOn-------------------------------( )machineC_toolOff--|
+// If the operation is done, the machine has a bottle, is at its end position, is not going up, and the tool is not on, it turns the tool off.
 
-```
-|--[ ]machineC_leftSensor--[ ]machineC_rightSensor--[ ]_openC--[        CALL FC_GetQueueBit        ]--[ ]FC_GetQueueBit_DB.Value--+--( )machineC_ack--|
-                                                               |  Parameters:                      |                              |
-                                                               |  Queue: _B_to_C_queue             |                              |
-                                                               |  Position: 0                      |                              |
-                                                               |  Value: FC_GetQueueBit_DB.Value   |                              |
-                                                                                                                                  +---(S)_openC_reset--|
-                                                                                                                                  |
-                                                                                                                                  +---(R)production_line_run--|
-                                                                                                                                  |
-                                                                                                                                  +---(S)machineC_topOrangeLight--|
-```
+|--[ ]_machineC_operation_done--[ ]_machineC_hasBottle--[/]machineC_toolWork-------------------------------------------------------------------( )machineC_goUp--|
+// If the operation is done, the machine has a bottle, and the tool is not working, it goes up
 
-### NETWORK 8 - Machine A Quality Status
-
-```
-|--[/]_openA--+--[ ]machineA_toolReady-----------------------------------------------------------------------------------------------------------------------(S)_A_ok--|
-              |
-              +--[ ]machineA_error---------------------------------------------------------------------------------------------------------------------------(R)_A_ok--|
-
-|--[ ]machineA_startPos--[ ]_A_end_pos--+--------------------------------------------------------------------------------------------------------------------(/)machineA_topOrangeLight--|
-                                        |
-                                        +--[ ]_A_ok--+-------------------------------------------------------------------------------------------------------(/)machineA_topRedLight--|
-                                        |            |
-                                        |            +-------------------------------------------------------------------------------------------------------( )machineA_topGreenLight--|
-                                        |
-                                        +--[/]_A_ok--+-------------------------------------------------------------------------------------------------------( )machineA_topRedLight--|
-                                                     |
-                                                     +-------------------------------------------------------------------------------------------------------(/)machineA_topGreenLight--|
-```
-
-### NETWORK 9 - Machine B Quality Status
-
-```
-|--[/]_openB--+--[ ]machineB_toolReady-----------------------------------------------------------------------------------------------------------------------(S)_B_ok--|
-              |
-              +--[ ]machineB_error---------------------------------------------------------------------------------------------------------------------------(R)_B_ok--|
-
-|--[ ]machineB_startPos--[ ]_B_end_pos--+--------------------------------------------------------------------------------------------------------------------(/)machineB_topOrangeLight--|
-                                        |
-                                        +--[ ]_B_ok--+-------------------------------------------------------------------------------------------------------(/)machineB_topRedLight--|
-                                        |            |
-                                        |            +-------------------------------------------------------------------------------------------------------( )machineB_topGreenLight--|
-                                        |
-                                        +--[/]_B_ok--+-------------------------------------------------------------------------------------------------------( )machineB_topRedLight--|
-                                                     |
-                                                     +-------------------------------------------------------------------------------------------------------(/)machineB_topGreenLight--|
-```
-
-### NETWORK 10 - Machine C Quality Status
-
-```
-|--[/]_openC--+--[ ]machineC_toolReady-----------------------------------------------------------------------------------------------------------------------(S)_C_ok--|
-              |
-              +--[ ]machineC_error---------------------------------------------------------------------------------------------------------------------------(R)_C_ok--|
-
-|--[ ]machineC_startPos--[ ]_C_end_pos--+--------------------------------------------------------------------------------------------------------------------(/)machineC_topOrangeLight--|
-                                        |
-                                        +--[ ]_C_ok--+-------------------------------------------------------------------------------------------------------(/)machineC_topRedLight--|
-                                        |            |
-                                        |            +-------------------------------------------------------------------------------------------------------( )machineC_topGreenLight--|
-                                        |
-                                        +--[/]_C_ok--+-------------------------------------------------------------------------------------------------------( )machineC_topRedLight--|
-                                                     |
-                                                     +-------------------------------------------------------------------------------------------------------(/)machineC_topGreenLight--|
-```
-
-### NETWORK 11 - Machine A to B Quality Queue
-
-```
-// Add quality result to queue when part leaves Machine A
-|--[ ]_last_A_rightSensor--[/]machineA_rightSensor--[/]_openA--+--[ ]_A_ok-----------------------------------------------------------------------------------[   CALL FC_AddToQueue   ]--|
-                                                               |                                                                                             |  Input parameters:     |
-                                                               |                                                                                             |  Queue: _A_to_B_queue  |
-                                                               |                                                                                             |  Value: 1 (good part)  |
-                                                               |
-                                                               +--[/]_A_ok-----------------------------------------------------------------------------------[   CALL FC_AddToQueue   ]--|
-                                                               |                                                                                             |  Input parameters:     |
-                                                               |                                                                                             |  Queue: _A_to_B_queue  |
-                                                               |                                                                                             |  Value: 0 (bad part)   |
-                                                               |
-                                                               +----------------------(S)_openA--|
-```
-
-### NETWORK 12 - Machine B to C Quality Queue
-
-```
-// Add quality result to queue when part leaves Machine B
-|--[ ]_last_B_rightSensor--[/]machineB_rightSensor--[/]_openB--+--[ ]_B_ok-----------------------------------------------------------------------------------[   CALL FC_AddToQueue   ]--|
-                                                               |                                                                                             |  Input parameters:     |
-                                                               |                                                                                             |  Queue: _B_to_C_queue  |
-                                                               |                                                                                             |  Value: 1 (good part)  |
-                                                               |
-                                                               +--[/]_B_ok-----------------------------------------------------------------------------------[   CALL FC_AddToQueue   ]--|
-                                                                                                                                                             |  Input parameters:     |
-                                                                                                                                                             |  Queue: _B_to_C_queue  |
-                                                                                                                                                             |  Value: 0 (bad part)   |
-
-// Shift A to B queue when part enters Machine B
-|--[/]machineB_rightSensor--[ ]_last_B_rightSensor-----------------------------------------------------------------------------------------------------------[  CALL FC_ShiftQueue   ]--|
-                                                                                                                                                             | Input parameter:      |
-                                                                                                                                                             | Queue: _A_to_B_queue  |
-
-// Shift B to C queue when part enters Machine C
-|--[/]machineC_rightSensor--[ ]_last_C_rightSensor--+--------------------------------------------------------------------------------------------------------[  CALL FC_ShiftQueue   ]--|
-                                                    |                                                                                                        | Input parameter:      |
-                                                    |                                                                                                        | Queue: _B_to_C_queue  |
-                                                    |
-                                                    +--[/]_openC---------------------------------------------------------------------------------------------(S)_openC--|
-```
-
-### NETWORK 13 - Edge Detection Memory
-
-```
-|--[ ]machineA_leftSensor------------------------------------------------------------------------------------------------------------------------------------( )_last_A_leftSensor--|
-
-|--[ ]machineA_rightSensor-----------------------------------------------------------------------------------------------------------------------------------( )_last_A_rightSensor--|
-
-|--[ ]machineB_leftSensor------------------------------------------------------------------------------------------------------------------------------------( )_last_B_leftSensor--|
-
-|--[ ]machineB_rightSensor-----------------------------------------------------------------------------------------------------------------------------------( )_last_B_rightSensor--|
-
-|--[ ]machineC_leftSensor------------------------------------------------------------------------------------------------------------------------------------( )_last_C_leftSensor--|
-
-|--[ ]machineC_rightSensor-----------------------------------------------------------------------------------------------------------------------------------( )_last_C_rightSensor--|
-```
-
-## Function Blocks
-
-### FC_AddToQueue
-
-#### Input Parameters:
-
-Queue (IN_OUT WORD) - The queue to modify
-Value (IN BOOL) - Value to add (1 for good, 0 for bad)
-
-#### STL Code:
-```stl
-      L     #Queue           // Load current Queue
-      SLW   1                // Shift left
-      T     #Queue           // Store back
-
-      A     #Value           // If #Value is TRUE
-      JCN   skipOR           // Skip if not true
-
-      L     #Queue           // Load Queue
-      L     W#16#0001        // Load constant
-      O                     // OR operation (word)
-      T     #Queue           // Store back
-
-skipOR: NOP   0
-```
-
-### FC_ShiftQueue
-
-#### Input Parameters:
-
-Queue (IN_OUT WORD) - The queue to shift
-
-#### STL Code:
-```stl
-      L     #Queue      // Load Queue
-      SRW   1           // Shift Right Word by 1
-      T     #Queue      // Store back into Queue
-```
-
-### FC_GetQueueBit
-
-#### Input Parameters:
-
-Queue (IN WORD) - The queue to read from
-Position (IN INT) - Bit position (0 = rightmost)
-
-#### Output Parameters:
-
-Value (OUT BOOL) - The bit value
-
-#### STL Code:
-```stl
-      L     1
-      L     #Position          // bit index (0..15)
-      SLW                     // 1 << Position → creates bitmask
-      L     #Queue
-      AW                      // Queue AND bitmask
-      L     0
-      <>I                     // Compare result ≠ 0
-      =     #Value            // Store result in BOOL
+|--[ ]_machineC_operation_done--[ ]machineC_leftSensor--[/]machineC_rightSensor--[ ]machineC_startPos------------------------------------------(R)_machineC_operation_done--|
+// If the operation is done, the left sensor is triggered, the right sensor is not triggered, and the machine is at its starting position, it resets the operation done flag
 ```
