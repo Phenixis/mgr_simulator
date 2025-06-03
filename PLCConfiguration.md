@@ -11,7 +11,9 @@ Version: 2.5
 
 ## Values
 
-The PLC program is designed to control a bottle filling station with three machines (A, B, and C). Each machine has various sensors and lights to indicate its status. The program uses inputs, outputs, and memory to manage the state of the machines and the production line. These values should be configured in the PLC "Default tag table" in the PLC Tags section. The memory addresses are important because the simulation will read and write values from these addresses.
+The PLC program is designed to control a bottle filling station with three machines (A, B, and C). Each machine has various sensors and lights to indicate its status. The program uses inputs, outputs, and memory to manage the state of the machines and the production line. 
+
+Instead of configuring all the tags one by one, you should have a "PLCTags.xlsx" file in the folder. If you go to the "PLC Tags" section and open the "Defaul Tag Table", you should find an "Import" button. This import button will allow you to import the file and have all the tags setup.
 
 INPUTS = values modified by the PLC (read by the simulation to acknowledge a modification)
 OUTPUTS = values used by the PLC to modify the INPUTS (written by the simulation to signal a modification to the PLC)
