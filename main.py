@@ -1,3 +1,12 @@
+import os
+import sys
+
+if getattr(sys, 'frozen', False):
+    snap7_path = os.path.join(sys._MEIPASS, 'snap7')
+    os.environ['PATH'] = snap7_path + os.pathsep + os.environ['PATH']
+
+# This enables the import of snap7 with pyinstaller
+
 import math
 from os import path
 from configparser import ConfigParser
@@ -8,6 +17,7 @@ from plcConnection import *
 from objects.machine import *
 from objects.bottle import *
 from objects.productionLine import ProductionLine
+from logger_config import setup_logger
 
 import sys
 import os
@@ -15,6 +25,13 @@ import os
 
 class Simulator:
     def __init__(self):
+        # Initialize logging system
+        self.loggers = setup_logger()
+        self.main_logger = self.loggers['main']
+        self.simulator_logger = self.loggers['simulator']
+        
+        self.main_logger.info("=== PLC Simulator Starting ===")
+        
         # initialize simulator window, etc.
         pg.init()
         pg.mixer.init()
@@ -115,7 +132,8 @@ class Simulator:
         # Preparing io area
         for i in range(37):
             self.inputs.append(False)
-        self.inputs[0] = True
+        
+        self.inputs[0] = True 
         for i in range(24):
             self.outputs.append(False)
         # Reading settings from .py file
@@ -267,7 +285,7 @@ class Simulator:
         self.last_bottle = Bottle(self, -100, 320)
         # creating read (main) thread objects for exchanging data with PLC
         self.plc_read_thread = PLCRead(self)
-        # Creating control variables
+        # Creating control variables 
         self.production_line_run = False  # production line run (input)
         self.machine_A_ROG = [False, False, False]  # machine sensor lights red/orange/green (inputs)
         self.machine_B_ROG = [False, False, False]
@@ -310,13 +328,78 @@ class Simulator:
 
     def run(self):
         # Starting status/read/write threads for exchanging data with PLC
+        self.main_logger.info("Starting main simulation run")
+        self.main_logger.info(f"PLC Configuration - Address: {self.plc_address}, Rack: {self.plc_rack}, Slot: {self.plc_slot}, Port: {self.plc_port}")
         self.plc_read_thread.start()
         # Simulation loop
         self.running = True
+        # Wait for PLC connection before starting simulation
+        print("Waiting for PLC connection...")
+        self.main_logger.info("Waiting for PLC connection...")
+        connection_wait_time = time.time()
+        attempt_count = 0
+        while not self.plc_read_thread.connected and self.running:
+            # Check for events to allow user to exit during connection attempt
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.running = False
+            # Draw waiting screen
+            self.screen.fill(DARK_GRAY)
+            waiting_text = self.render_text("Waiting for PLC connection...", 30, WHITE)
+            self.screen.blit(waiting_text, (WIDTH//2 - waiting_text.get_width()//2, HEIGHT//2 - 70))
+            address_text = self.render_text(f"Attempting to connect to: {self.plc_address}", 20, WHITE)
+            self.screen.blit(address_text, (WIDTH//2 - address_text.get_width()//2, HEIGHT//2 - 30))
+            
+            # Show the connection attempt count
+            attempt_count += 1
+            attempts_text = self.render_text(f"Attempt {attempt_count}", 20, WHITE)
+            self.screen.blit(attempts_text, (WIDTH//2 - attempts_text.get_width()//2, HEIGHT//2))
+            
+            # Display timeout message after 10 seconds
+            if time.time() - connection_wait_time > 10:
+                timeout_text = self.render_text("Connection taking longer than expected. Check PLC address and settings.", 15, WHITE)
+                self.screen.blit(timeout_text, (WIDTH//2 - timeout_text.get_width()//2, HEIGHT//2 + 30))
+                
+                # Add more helpful text after 15 seconds
+                if time.time() - connection_wait_time > 15:
+                    help_text1 = self.render_text("1. Verify the PLC is powered on and accessible on the network", 15, WHITE)
+                    help_text2 = self.render_text("2. Check that the IP address, rack, and slot in simulator.ini are correct", 15, WHITE)
+                    help_text3 = self.render_text("3. Ensure no firewall is blocking the connection", 15, WHITE)
+                    self.screen.blit(help_text1, (WIDTH//2 - help_text1.get_width()//2, HEIGHT//2 + 60))
+                    self.screen.blit(help_text2, (WIDTH//2 - help_text2.get_width()//2, HEIGHT//2 + 80))
+                    self.screen.blit(help_text3, (WIDTH//2 - help_text3.get_width()//2, HEIGHT//2 + 100))
+            
+            pg.display.flip()
+            time.sleep(0.5)
+            
+        # If we exited the loop but aren't connected, exit
+        if not self.plc_read_thread.connected:
+            self.main_logger.error("Failed to connect to PLC. Exiting simulation.")
+            print("Failed to connect to PLC. Exiting.")
+            self.running = False
+        else:
+            self.main_logger.info("PLC connection established successfully. Starting main simulation loop.")
+            
         if self.timer_on:
+            self.main_logger.info(f"Timer enabled: {self.time_set} seconds")
             self.time_mem = time.time()
+            
         while self.running:
             self.sim_count += 1
+            
+            # Check if we're still connected to PLC
+            if not self.plc_read_thread.connected:
+                self.main_logger.warning("PLC connection lost during simulation. Stopping simulation.")
+                print("PLC connection lost. Stopping simulation.")
+                # Try one more time to reconnect
+                self.plc_read_thread.connection_attempts = 0
+                # Wait for a moment before stopping completely
+                time.sleep(2)
+                # If still not connected, stop the simulation
+                if not self.plc_read_thread.connected:
+                    self.running = False
+                    break
+                
             # fps management
             if self.manual_mode_on:
                 self.fps = self.manual_mode_fps
@@ -348,15 +431,25 @@ class Simulator:
             # timer execution
             if self.timer_on:
                 if time.time() - self.time_mem >= self.time_set:
+                    self.main_logger.info(f"Simulation ended by timer after {self.time_set} seconds")
                     print("Simulation end by timer, after " + str(self.time_set) + " sec.")
                     self.running = False
         # at the end finish threads processes
         if not self.running:
+            self.main_logger.info("Simulation ending - stopping PLC threads")
             self.plc_read_thread.running = False
             self.plc_read_thread.join()
+            self.main_logger.info("All PLC threads stopped. Simulation ended.")
 
     def events(self):
         # Simulation loop events
+        if not self.plc_read_thread.connected:
+            # Only check for quit events if not connected to PLC
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.running = False
+            return
+            
         updated_broken_bottle_chance = False
         updated_self_processing = False
         updated_random_space = False
@@ -410,7 +503,9 @@ class Simulator:
                 if event.key == pg.K_F1:
                     self.show_help = not self.show_help
                 if event.key == pg.K_F2:
+                    old_state = self.start_simulation
                     self.start_simulation = not self.start_simulation
+                    self.simulator_logger.info(f"Simulation state changed: {old_state} -> {self.start_simulation} (via F2 key)")
                 if event.key == pg.K_F3:
                     updated_self_processing = True
                 if event.key == pg.K_F4:
@@ -592,15 +687,31 @@ class Simulator:
                 self.max_fps = 30
             self.texts[3][1] = self.render_text("max " + str(self.max_fps) + " FPS", 20, WHITE)
         if updated_self_processing:
+            old_state = self.self_processing_on
             self.self_processing_on = not self.self_processing_on
+            self.simulator_logger.info(f"Self-processing mode changed: {old_state} -> {self.self_processing_on}")
         if updated_manual_mode:
+            old_state = self.manual_mode_on
             self.manual_mode_on = not self.manual_mode_on
+            self.simulator_logger.info(f"Manual mode changed: {old_state} -> {self.manual_mode_on}")
             if self.manual_mode_on:
                 self.production_line_run = False
+                self.simulator_logger.info("Production line stopped due to manual mode activation")
         if updated_random_space:
+            old_state = self.random_space_on
             self.random_space_on = not self.random_space_on
+            self.simulator_logger.info(f"Random space mode changed: {old_state} -> {self.random_space_on}")
 
     def update(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            # Stop the simulation if not connected to PLC
+            if self.start_simulation:
+                self.start_simulation = False
+                self.simulator_logger.warning("Simulation stopped: PLC connection required")
+                print("Simulation stopped: PLC connection required")
+            return
+            
         # Simulation loop update
         self.all_sprites.update()
         # spawning next bottles
@@ -634,6 +745,10 @@ class Simulator:
             self.control_panel_R.is_on = False
 
     def filler(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            return
+            
         # Liquid queue processing
         if self.filler_update:
             # choosing active filler
@@ -663,6 +778,15 @@ class Simulator:
             self.filler_update = False
 
     def manual_mode(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            # Stop the manual mode if not connected to PLC
+            if self.manual_mode_on:
+                self.manual_mode_on = False
+                self.simulator_logger.warning("Manual mode disabled: PLC connection required")
+                print("Manual mode disabled: PLC connection required")
+            return
+            
         # update machine sensor lights state...
         # ...for machine A
         if self.machine_A_LR[0] and self.machine_A_LR[1]:
@@ -687,8 +811,18 @@ class Simulator:
             self.machine_C_ROG = [True, False, False]
 
     def self_processing(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            # Stop self-processing if not connected to PLC
+            if self.self_processing_on:
+                self.self_processing_on = False
+                self.simulator_logger.warning("Self-processing disabled: PLC connection required")
+                print("Self-processing disabled: PLC connection required")
+            return
+            
         # Simulation self processing loop update
         # starting production line after all operations complete
+        # NETWORK 1
         if not self.machine_A_top_ROG[1] and not self.machine_B_top_ROG[1] and not self.machine_C_top_ROG[1]:
             self.sp_during_operation = False
         if not self.sp_during_operation:
@@ -696,27 +830,29 @@ class Simulator:
 
         # update machine sensor lights state...
         # ...for machine A
+        # NETWORK 2
         if self.machine_A_LR[0] and self.machine_A_LR[1]:
             if self.machine_A_operation_in[5]:
                 self.machine_A_operation_in[5] = False
-            self.machine_A_ROG = [False, False, True]
+            self.machine_A_ROG = [False, False, True] # Turn on the green light
             if self.sp_openA:
                 self.production_line_run = False
                 self.sp_during_operation = True
                 self.sp_openA = False
                 self.sp_A_ok = False
                 self.machine_A_operation_in[5] = True
-                self.machine_A_top_ROG[1] = True
-                self.machine_A_top_ROG[2] = False
+                self.machine_A_top_ROG[1] = True # Turn on the top orange light
+                self.machine_A_top_ROG[2] = False # Turn off the top green light
         elif self.machine_A_LR[0] or self.machine_A_LR[1]:
-            self.machine_A_ROG = [False, True, False]
+            self.machine_A_ROG = [False, True, False] # Turn on the orange light
         else:
-            self.machine_A_ROG = [True, False, False]
+            self.machine_A_ROG = [True, False, False] # Turn on the red light
         # ...for machine B
+        # NETWORK 3
         if self.machine_B_LR[0] and self.machine_B_LR[1]:
             if self.machine_B_operation_in[5]:
                 self.machine_B_operation_in[5] = False
-            self.machine_B_ROG = [False, False, True]
+            self.machine_B_ROG = [False, False, True] # Turn on the green light
             if self.sp_openB:
                 if self.sp_A_to_B != '':
                     if self.sp_A_to_B[0] == '1':
@@ -725,17 +861,18 @@ class Simulator:
                         self.sp_openB = False
                         self.sp_B_ok = False
                         self.machine_B_operation_in[5] = True
-                        self.machine_B_top_ROG[1] = True
-                        self.machine_B_top_ROG[2] = False
-        elif self.machine_B_LR[0] or self.machine_B_LR[1]:
-            self.machine_B_ROG = [False, True, False]
+                        self.machine_B_top_ROG[1] = True # Turn on the top orange light
+                        self.machine_B_top_ROG[2] = False # Turn off the top green light
+        elif self.machine_B_LR[0] or self.machine_B_LR[1]: 
+            self.machine_B_ROG = [False, True, False] # Turn on the orange light
         else:
-            self.machine_B_ROG = [True, False, False]
+            self.machine_B_ROG = [True, False, False] # Turn on the red light
         # ...for machine C
+        # NETWORK 4
         if self.machine_C_LR[0] and self.machine_C_LR[1]:
             if self.machine_C_operation_in[5]:
                 self.machine_C_operation_in[5] = False
-            self.machine_C_ROG = [False, False, True]
+            self.machine_C_ROG = [False, False, True] # Turn on the green light
             if self.sp_openC:
                 if self.sp_B_to_C != '':
                     if self.sp_B_to_C[0] == '1':
@@ -744,14 +881,15 @@ class Simulator:
                         self.sp_openC = False
                         self.sp_C_ok = False
                         self.machine_C_operation_in[5] = True
-                        self.machine_C_top_ROG[1] = True
-                        self.machine_C_top_ROG[2] = False
+                        self.machine_C_top_ROG[1] = True # Turn on the top orange light
+                        self.machine_C_top_ROG[2] = False # Turn off the top green light
         elif self.machine_C_LR[0] or self.machine_C_LR[1]:
-            self.machine_C_ROG = [False, True, False]
+            self.machine_C_ROG = [False, True, False] # Turn on the orange light
         else:
-            self.machine_C_ROG = [True, False, False]
+            self.machine_C_ROG = [True, False, False] # Turn on the red light
         # bottle left operation...
         # ...on machine A
+        # NETWORK 8
         if self.sp_last_A_LR[1] and not self.machine_A_LR[1]:
             if not self.sp_openA:
                 if self.sp_A_ok:
@@ -760,6 +898,7 @@ class Simulator:
                     self.sp_A_to_B += '0'
                 self.sp_openA = True
         # ...on machine B
+        # NETWORK 9
         if not self.machine_B_LR[1] and self.sp_last_B_LR[1]:
             self.sp_A_to_B = self.sp_A_to_B[1:]
             if not self.sp_openB:
@@ -771,29 +910,32 @@ class Simulator:
             else:
                 self.sp_B_to_C += '0'
         # ...on machine C
+        # NETWORK 11
         if not self.machine_C_LR[1] and self.sp_last_C_LR[1]:
             self.sp_B_to_C = self.sp_B_to_C[1:]
             if not self.sp_openC:
                 self.sp_openC = True
 
         # cycle A
+        # NETWORK 5
         if not self.sp_openA:
-            if self.machine_A_operation_out[3]:
+            if self.machine_A_operation_out[3]: # If machine A is in operation 
                 self.sp_A_ok = True
-            if self.machine_A_operation_out[4]:
+            if self.machine_A_operation_out[4]: # If machine A is not in operation
                 self.sp_A_ok = False
-            if self.machine_A_operation_out[1]:
-                self.sp_A_end_pos = True
-            if self.machine_A_operation_out[0] and self.sp_A_end_pos:
-                self.machine_A_top_ROG[1] = False
-                if self.sp_A_ok:
-                    self.machine_A_top_ROG[0] = False
-                    self.machine_A_top_ROG[2] = True
+            if self.machine_A_operation_out[1]: # If machine A is in position
+                self.sp_A_end_pos = True 
+            if self.machine_A_operation_out[0] and self.sp_A_end_pos: # If machine A is in position and the operation is complete
+                self.machine_A_top_ROG[1] = False # Turn off the orange light
+                if self.sp_A_ok: # If machine A is ok
+                    self.machine_A_top_ROG[0] = False # Turn off the red light
+                    self.machine_A_top_ROG[2] = True # Turn on the green light
                 else:
-                    self.machine_A_top_ROG[0] = True
-                    self.machine_A_top_ROG[2] = False
+                    self.machine_A_top_ROG[0] = True # Turn on the red light 
+                    self.machine_A_top_ROG[2] = False # Turn off the green light
                 self.sp_A_end_pos = False
         # cycle B
+        # NETWORK 6
         if not self.sp_openB:
             if self.machine_B_operation_out[3]:
                 self.sp_B_ok = True
@@ -811,6 +953,7 @@ class Simulator:
                     self.machine_B_top_ROG[2] = False
                 self.sp_B_end_pos = False
         # cycle C
+        # NETWORK 7
         if not self.sp_openC:
             if self.machine_C_operation_out[3]:
                 self.sp_C_ok = True
@@ -829,6 +972,7 @@ class Simulator:
                 self.sp_C_end_pos = False
 
         # machines LR sensor edge detection variables
+        # NETWORK 10
         self.sp_last_A_LR[0] = self.machine_A_LR[0]
         self.sp_last_A_LR[1] = self.machine_A_LR[1]
         self.sp_last_B_LR[0] = self.machine_B_LR[0]
@@ -837,11 +981,19 @@ class Simulator:
         self.sp_last_C_LR[1] = self.machine_C_LR[1]
 
     def plc_processing(self):
+        # Check PLC connection first
+        if not self.plc_read_thread.connected:
+            # Stop the simulation if not connected to PLC
+            if self.start_simulation:
+                self.start_simulation = False
+                print("Simulation stopped: PLC connection required")
+            return
+            
         # data access control
-        if not self.io_lock and self.plc_read_thread.connected:
+        if not self.io_lock:
             self.io_lock = True
 
-            # update simulation inputs
+            # update simulation inputs // PLC outputs
             self.production_line_run = self.inputs[0]
             self.machine_A_ROG = self.inputs[1:4]
             self.machine_B_ROG = self.inputs[4:7]
@@ -852,8 +1004,18 @@ class Simulator:
             self.machine_A_operation_in = self.inputs[19:25]
             self.machine_B_operation_in = self.inputs[25:31]
             self.machine_C_operation_in = self.inputs[31:37]
+            # print("Production line run state:", self.production_line_run)
+            # print(f"Machine A lights: Red {self.machine_A_ROG[0]}, Orange {self.machine_A_ROG[1]}, Green {self.machine_A_ROG[2]}")
+            # print(f"Machine B lights: Red {self.machine_B_ROG[0]}, Orange {self.machine_B_ROG[1]}, Green {self.machine_B_ROG[2]}")
+            # print(f"Machine C lights: Red {self.machine_C_ROG[0]}, Orange {self.machine_C_ROG[1]}, Green {self.machine_C_ROG[2]}")
+            # print(f"Machine A top lights: Red {self.machine_A_top_ROG[0]}, Orange {self.machine_A_top_ROG[1]}, Green {self.machine_A_top_ROG[2]}")
+            # print(f"Machine B top lights: Red {self.machine_B_top_ROG[0]}, Orange {self.machine_B_top_ROG[1]}, Green {self.machine_B_top_ROG[2]}")
+            # print(f"Machine C top lights: Red {self.machine_C_top_ROG[0]}, Orange {self.machine_C_top_ROG[1]}, Green {self.machine_C_top_ROG[2]}")
+            # print(f"Machine A operation inputs: go down {self.machine_A_operation_in[0]}, go up {self.machine_A_operation_in[1]}, tool on {self.machine_A_operation_in[2]}, tool off {self.machine_A_operation_in[3]}, ack {self.machine_A_operation_in[4]}")
+            # print(f"Machine B operation inputs: go down {self.machine_B_operation_in[0]}, go up {self.machine_B_operation_in[1]}, tool on {self.machine_B_operation_in[2]}, tool off {self.machine_B_operation_in[3]}, ack {self.machine_B_operation_in[4]}")
+            # print(f"Machine C operation inputs: go down {self.machine_C_operation_in[0]}, go up {self.machine_C_operation_in[1]}, tool on {self.machine_C_operation_in[2]}, tool off {self.machine_C_operation_in[3]}, ack {self.machine_C_operation_in[4]}")
 
-            # update simulation outputs
+            # update simulation outputs // PLC inputs
             self.outputs = [self.machine_A_LR[0], self.machine_A_LR[1],
                             self.machine_B_LR[0], self.machine_B_LR[1],
                             self.machine_C_LR[0], self.machine_C_LR[1],
@@ -866,13 +1028,28 @@ class Simulator:
                             self.machine_C_operation_out[0], self.machine_C_operation_out[1],
                             self.machine_C_operation_out[2], self.machine_C_operation_out[3],
                             self.machine_C_operation_out[4], False, False, False]
-
-            self.io_lock = False
+        
+        self.io_lock = False
 
     def draw(self):
         # Simulation drawing loop
         # drawing background
         self.screen.blit(self.background, (0, 0))
+        
+        # Check if PLC is connected and show appropriate message if not
+        if not self.plc_read_thread.connected:
+            self.screen.fill(DARK_GRAY)
+            disconnected_text = self.render_text("PLC Connection Required", 30, WHITE)
+            self.screen.blit(disconnected_text, (WIDTH//2 - disconnected_text.get_width()//2, HEIGHT//2 - 50))
+            instructions_text = self.render_text("This simulator only works when connected to a PLC.", 20, WHITE)
+            self.screen.blit(instructions_text, (WIDTH//2 - instructions_text.get_width()//2, HEIGHT//2))
+            address_text = self.render_text(f"Configured PLC address: {self.plc_address}", 20, WHITE)
+            self.screen.blit(address_text, (WIDTH//2 - address_text.get_width()//2, HEIGHT//2 + 30))
+            settings_text = self.render_text("Check settings.ini to configure PLC connection parameters.", 18, WHITE)
+            self.screen.blit(settings_text, (WIDTH//2 - settings_text.get_width()//2, HEIGHT//2 + 60))
+            pg.display.flip()
+            return
+            
         # self.all_sprites.draw(self.screen)  # not in use as the sprites update queue is specified
         # draw sprites under bottle liquid
         self.machines_sensor.draw(self.screen)
@@ -1023,6 +1200,33 @@ class Simulator:
 
 # Main
 if __name__ == '__main__':
+    print("="*80)
+    print("BOTTLE FILLING MACHINE SIMULATOR")
+    print("="*80)
+    print("This simulator requires a PLC connection to operate.")
+    print("Configuration will be loaded from simulator.ini")
+    
+    # Read PLC settings from ini file to show the user
+    import configparser
+    config = configparser.ConfigParser()
+    try:
+        config.read('simulator.ini')
+        plc_address = config.get('plc', 'address')
+        plc_rack = config.getint('plc', 'rack')
+        plc_slot = config.getint('plc', 'slot')
+        plc_port = config.getint('plc', 'port')
+        print("\nPLC Connection Settings:")
+        print(f"  Address: {plc_address}")
+        print(f"  Rack: {plc_rack}")
+        print(f"  Slot: {plc_slot}")
+        print(f"  Port: {plc_port}")
+        print("\nMake sure your PLC is powered on and accessible on the network.")
+    except Exception as e:
+        print("Error reading simulator.ini. Please ensure the file exists and has the correct format.")
+        print(f"Error details: {str(e)}")
+    
+    print("="*80)
+    
     g = Simulator()
     g.initial()
 
@@ -1033,4 +1237,6 @@ if __name__ == '__main__':
     print('write_operation_count: ' + str(g.write_operation_count))
     print('read_thread_count: ' + str(g.read_thread_count))
     print('read_operation_count: ' + str(g.read_operation_count))
+    
+    print("\nSimulation ended. PLC connection is required to run the simulator.")
     pg.quit()

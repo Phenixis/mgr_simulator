@@ -1,0 +1,13 @@
+# Main dependencies
+numpy
+matplotlib
+pygame
+pandas
+scipy
+seaborn
+tqdm
+pyinstaller
+python-snap7
+
+# Optional dependencies
+joblib  # For parallelization
